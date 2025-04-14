@@ -95,6 +95,12 @@ async def upload_file(file: UploadFile = File(...)):
         preview = df.head(5).to_dict(orient="records")
         columns = list(df.columns)
         print(f"Successfully parsed CSV with {len(df)} rows, {len(columns)} columns")
+    except pd.errors.EmptyDataError:
+        print("Error: Empty CSV file")
+        raise HTTPException(status_code=400, detail="The CSV file is empty")
+    except pd.errors.ParserError as e:
+        print(f"CSV parsing error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(e)}")
     except Exception as e:
         print(f"Error reading CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
