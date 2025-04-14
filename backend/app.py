@@ -25,10 +25,10 @@ if not GROQ_API_KEY:
 
 app = FastAPI(title="Data Analysis API")
 
-# Add CORS middleware
+# Add CORS middleware with specific configuration for Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["https://data-analyst-agent-seven.vercel.app", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
