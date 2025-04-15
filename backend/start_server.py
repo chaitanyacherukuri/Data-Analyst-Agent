@@ -2,24 +2,62 @@ import os
 import sys
 import subprocess
 import uvicorn
+import time
 
 def install_packages():
     """Install required packages explicitly to ensure they're available"""
     print("Installing required packages...")
-    packages = [
-        "groq==0.4.2",
-        "agno==1.3.1",
-        "httpx>=0.24.1",
-        "types-requests==2.31.0.1"
+    # First install dependencies
+    base_packages = [
+        "httpx",
+        "types-requests",
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "python-multipart",
+        "pandas",
+        "python-dotenv",
+        "duckdb"
     ]
-    for package in packages:
-        print(f"Installing {package}...")
+    
+    for package in base_packages:
+        print(f"Installing base package: {package}...")
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package])
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to install {package}: {e}")
-            print("Continuing with deployment...")
+    
+    # Then install groq and agno
+    print("Installing AI packages...")
+    ai_packages = ["groq", "agno"]
+    for package in ai_packages:
+        try:
+            print(f"Installing {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package])
+            
+            # Verify installation
+            if package == "groq":
+                try:
+                    result = subprocess.run(
+                        [sys.executable, "-c", f"import {package}; print(f'{package} version: ' + getattr({package}, '__version__', 'unknown'))"],
+                        capture_output=True,
+                        text=True
+                    )
+                    print(result.stdout.strip())
+                except Exception:
+                    print(f"Installed {package} but couldn't verify version")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Failed to install {package}: {e}")
+            # If package installation fails, try without dependencies
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "--no-deps", package])
+                print(f"Installed {package} without dependencies")
+            except Exception as e2:
+                print(f"Critical: Failed to install {package} even without dependencies: {e2}")
+    
     print("Package installation completed.")
+    # Give a moment for packages to be properly registered
+    time.sleep(1)
 
 if __name__ == "__main__":
     # Install packages first

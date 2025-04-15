@@ -10,10 +10,16 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import json
 import csv
+import importlib
 
-from agno.agent import Agent
-from agno.models.groq import Groq
-from agno.tools.duckdb import DuckDbTools
+# Import with try/except to handle potential import errors
+try:
+    from agno.agent import Agent
+    from agno.tools.duckdb import DuckDbTools
+    # Don't import Groq here, we'll handle it conditionally in the get_agent function
+except ImportError as e:
+    print(f"Warning: Failed to import some agno modules: {e}")
+    print("Some functionality may be limited")
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -50,6 +56,20 @@ os.makedirs("temp", exist_ok=True)
 
 # Session store (in production, use Redis or a database)
 sessions = {}
+
+# Fallback model class for when Groq is not available
+class FallbackModel:
+    def __init__(self, id=None, temperature=0, max_tokens=1000, api_key=None):
+        self.id = id
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.api_key = api_key
+        print("WARNING: Using FallbackModel because Groq is not available")
+    
+    async def generate(self, prompt, **kwargs):
+        return {
+            "text": "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support for assistance."
+        }
 
 class AnalysisRequest(BaseModel):
     session_id: str
@@ -164,40 +184,89 @@ async def upload_file(file: UploadFile = File(...)):
 
 def get_agent(file_path: str):
     """Initialize DuckDB tools and Agno agent"""
-    duckdb_tools = DuckDbTools(
-        create_tables=True,
-        summarize_tables=True,
-        export_tables=False
-    )
-    
-    # Load data into DuckDB
-    duckdb_tools.load_local_csv_to_table(
-        path=file_path,
-        table="uploaded_data"
-    )
-    
-    # Initialize the agent with Groq
     try:
-        # First try to import Groq directly
-        try:
-            from agno.models.groq import Groq
-        except ImportError:
-            print("Failed to import Groq from agno.models.groq, attempting to install...")
-            import subprocess
-            import sys
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "groq==0.4.2"])
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "agno==1.3.1"])
-            from agno.models.groq import Groq
-            
-        print("Successfully imported Groq")
+        from agno.tools.duckdb import DuckDbTools
+        duckdb_tools = DuckDbTools(
+            create_tables=True,
+            summarize_tables=True,
+            export_tables=False
+        )
         
-        agent = Agent(
-            model=Groq(
-                id="meta-llama/llama-4-scout-17b-16e-instruct",
+        # Load data into DuckDB
+        duckdb_tools.load_local_csv_to_table(
+            path=file_path,
+            table="uploaded_data"
+        )
+        
+        # Try to import and use Groq
+        groq_available = False
+        model = None
+        
+        # First try dynamic import of groq
+        try:
+            # Use importlib for more flexible import handling
+            print("Attempting to import groq module...")
+            groq_module = importlib.import_module("groq")
+            print(f"Groq module imported successfully. Version: {getattr(groq_module, '__version__', 'unknown')}")
+            
+            # Then try to get the agent's Groq model
+            try:
+                print("Attempting to import Groq from agno.models.groq...")
+                agno_groq = importlib.import_module("agno.models.groq")
+                if hasattr(agno_groq, "Groq"):
+                    Groq = agno_groq.Groq
+                    model = Groq(
+                        id="meta-llama/llama-4-scout-17b-16e-instruct",
+                        temperature=0.1,
+                        max_tokens=4000,
+                        api_key=GROQ_API_KEY
+                    )
+                    groq_available = True
+                    print("Successfully initialized Groq model")
+                else:
+                    print("The Groq class was not found in agno.models.groq")
+            except ImportError as e:
+                print(f"Failed to import Groq from agno.models.groq: {e}")
+                # If the specific import fails, try to install
+                import subprocess
+                import sys
+                print("Attempting to install dependencies...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "groq"])
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "agno"])
+                
+                # Try again
+                try:
+                    agno_groq = importlib.import_module("agno.models.groq")
+                    if hasattr(agno_groq, "Groq"):
+                        Groq = agno_groq.Groq
+                        model = Groq(
+                            id="meta-llama/llama-4-scout-17b-16e-instruct",
+                            temperature=0.1,
+                            max_tokens=4000,
+                            api_key=GROQ_API_KEY
+                        )
+                        groq_available = True
+                        print("Successfully initialized Groq model after installation")
+                except Exception as e2:
+                    print(f"Still failed to initialize Groq after installation: {e2}")
+        except Exception as e:
+            print(f"Error initializing Groq: {e}")
+        
+        # If still not available, use fallback
+        if not groq_available:
+            print("Using fallback model since Groq initialization failed")
+            model = FallbackModel(
+                id="fallback-model",
                 temperature=0.1,
                 max_tokens=4000,
                 api_key=GROQ_API_KEY
-            ),
+            )
+        
+        # Create agent with appropriate model
+        from agno.agent import Agent
+        print("Creating Agent with model type:", type(model).__name__)
+        agent = Agent(
+            model=model,
             description="You are a SQL expert data analyst who specializes in performing data analysis using DuckDB queries on real data.",
             instructions=[
                 # Initial data examination
@@ -255,39 +324,93 @@ def get_agent(file_path: str):
                 "Always verify data types before performing type-specific operations (e.g., date functions on date columns)"
             ],
             tools=[duckdb_tools],
-            markdown=True,
-            show_tool_calls=True
+            markdown=True
         )
+        
+        return agent
     except Exception as e:
-        print(f"Error initializing Groq agent: {str(e)}")
-        error_detail = str(e)
-        if "groq` not installed" in error_detail:
-            error_detail += " - Please check your Railway configuration to ensure the GROQ_API_KEY is set and dependencies are installed properly."
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error initializing Groq agent: {error_detail}. Please check your GROQ_API_KEY."
-        )
-    
-    return agent
+        print(f"Error initializing agent: {str(e)}")
+        # Create a fallback agent that explains the error
+        try:
+            # Create a minimal fallback model that doesn't depend on external services
+            fallback_model = FallbackModel()
+            
+            # Create a minimal DuckDB tools instance if possible
+            try:
+                from agno.tools.duckdb import DuckDbTools
+                duckdb_tools = DuckDbTools(
+                    create_tables=True,
+                    summarize_tables=True,
+                    export_tables=False
+                )
+                
+                # Try to load data if possible
+                try:
+                    duckdb_tools.load_local_csv_to_table(
+                        path=file_path,
+                        table="uploaded_data"
+                    )
+                except Exception as load_error:
+                    print(f"Failed to load data in fallback mode: {str(load_error)}")
+            except Exception as tools_error:
+                print(f"Failed to create DuckDB tools in fallback mode: {str(tools_error)}")
+                duckdb_tools = None
+            
+            # Create a minimal agent with fallback model
+            from agno.agent import Agent
+            fallback_agent = Agent(
+                model=fallback_model,
+                description="Fallback data analysis assistant",
+                instructions=["Explain that there was an error with the AI service and suggest trying again later."],
+                tools=[duckdb_tools] if duckdb_tools else []
+            )
+            return fallback_agent
+        except Exception as fallback_error:
+            print(f"Critical error - even fallback agent creation failed: {str(fallback_error)}")
+            # Return None as a last resort - the API endpoint will need to handle this case
+            return None
 
 @app.post("/api/analyze")
 async def analyze_data(request: AnalysisRequest):
-    """Run analysis on the uploaded data"""
-    if request.session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    """Analyze data based on user question"""
+    session_id = request.session_id
     
-    session = sessions[request.session_id]
+    # Check if session exists
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found. Please upload a file first.")
+    
+    session = sessions[session_id]
     
     try:
+        # Get agent (initializes DuckDB and Groq)
         agent = get_agent(session.file_path)
-        response = agent.run(request.question)
         
-        return {
-            "content": response.content,
-            "tool_calls": response.tool_calls if hasattr(response, "tool_calls") else None
-        }
+        if agent is None:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to initialize analysis agent. Please try again later."}
+            )
+        
+        # Run analysis using the agent
+        try:
+            # Try async version first (newer versions of agno)
+            response = await agent.arun(request.question)
+            return {"response": response}
+        except (AttributeError, TypeError) as e:
+            # Fall back to sync version if async not available
+            print(f"Using synchronous run as async failed: {e}")
+            response = agent.run(request.question)
+            # Handle different response formats
+            if hasattr(response, 'content'):
+                return {"response": response.content}
+            else:
+                return {"response": response}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
+        print(f"Error in analysis: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Analysis failed: {str(e)}"}
+        )
 
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str):
