@@ -178,6 +178,19 @@ def get_agent(file_path: str):
     
     # Initialize the agent with Groq
     try:
+        # First try to import Groq directly
+        try:
+            from agno.models.groq import Groq
+        except ImportError:
+            print("Failed to import Groq from agno.models.groq, attempting to install...")
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "groq==0.4.2"])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "agno==1.3.1"])
+            from agno.models.groq import Groq
+            
+        print("Successfully imported Groq")
+        
         agent = Agent(
             model=Groq(
                 id="meta-llama/llama-4-scout-17b-16e-instruct",
@@ -246,9 +259,13 @@ def get_agent(file_path: str):
             show_tool_calls=True
         )
     except Exception as e:
+        print(f"Error initializing Groq agent: {str(e)}")
+        error_detail = str(e)
+        if "groq` not installed" in error_detail:
+            error_detail += " - Please check your Railway configuration to ensure the GROQ_API_KEY is set and dependencies are installed properly."
         raise HTTPException(
             status_code=500,
-            detail=f"Error initializing Groq agent: {str(e)}. Please check your GROQ_API_KEY."
+            detail=f"Error initializing Groq agent: {error_detail}. Please check your GROQ_API_KEY."
         )
     
     return agent
