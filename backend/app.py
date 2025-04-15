@@ -14,6 +14,7 @@ import csv
 import importlib
 import sys
 import traceback
+from fastapi import Request
 
 # Import with try/except to handle potential import errors
 try:
@@ -79,9 +80,15 @@ class FallbackModel:
         print("WARNING: Using FallbackModel because Groq is not available")
     
     async def generate(self, prompt, **kwargs):
+        print(f"FallbackModel received prompt: {prompt[:100]}...")
         return {
             "text": "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support for assistance."
         }
+    
+    def run(self, prompt, **kwargs):
+        """Synchronous version for compatibility"""
+        print(f"FallbackModel (sync) received prompt: {prompt[:100]}...")
+        return "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support for assistance."
 
 class AnalysisRequest(BaseModel):
     session_id: str
@@ -125,6 +132,7 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No file uploaded")
         
     print(f"Received file upload: {file.filename}")
+    print(f"Content type: {file.content_type}")
     
     if not file.filename.endswith('.csv'):
         print(f"Error: File type not supported - {file.filename}")
@@ -137,6 +145,7 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         # Ensure temp directory exists
         os.makedirs("temp", exist_ok=True)
+        print(f"Temp directory exists: {os.path.exists('temp')}")
         
         # Save file content
         print(f"Saving file to {file_path}")
@@ -147,13 +156,19 @@ async def upload_file(file: UploadFile = File(...)):
             print("Error: File is empty")
             raise HTTPException(status_code=400, detail="The uploaded file is empty")
             
+        file_size = len(contents)
+        print(f"File size: {file_size} bytes")
+        
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
+        
+        print(f"File saved successfully: {os.path.exists(file_path)}")
         
         # Reset file cursor for potential reuse
         await file.seek(0)
     except Exception as e:
         print(f"Error saving file: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
     
     # Store session information
@@ -188,6 +203,8 @@ async def upload_file(file: UploadFile = File(...)):
         preview = df.head(5).to_dict(orient="records")
         columns = list(df.columns)
         print(f"Successfully parsed CSV with {len(df)} rows, {len(columns)} columns")
+        print(f"Available columns: {columns}")
+        print(f"Preview data (first few records): {preview[:2]}")
     except pd.errors.EmptyDataError:
         print("Error: Empty CSV file")
         raise HTTPException(status_code=400, detail="The CSV file is empty")
@@ -196,6 +213,7 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(e)}")
     except Exception as e:
         print(f"Error reading CSV: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
     
     response_data = {
@@ -205,6 +223,7 @@ async def upload_file(file: UploadFile = File(...)):
         "columns": columns
     }
     print(f"Upload successful. Session ID: {session_id}")
+    print(f"Response data size: {len(str(response_data))} chars")
     return response_data
 
 def get_agent(file_path: str):
@@ -420,18 +439,27 @@ async def analyze_data(request: AnalysisRequest):
         try:
             # Try async version first (newer versions of agno)
             response = await agent.arun(request.question)
-            return {"response": response}
+            # Return in the format expected by frontend
+            if isinstance(response, str):
+                return {"content": response}
+            elif hasattr(response, 'content'):
+                return {"content": response.content}
+            else:
+                return {"content": str(response)}
         except (AttributeError, TypeError) as e:
             # Fall back to sync version if async not available
             print(f"Using synchronous run as async failed: {e}")
             response = agent.run(request.question)
             # Handle different response formats
             if hasattr(response, 'content'):
-                return {"response": response.content}
+                return {"content": response.content}
+            elif isinstance(response, str):
+                return {"content": response}
             else:
-                return {"response": response}
+                return {"content": str(response)}
     except Exception as e:
         print(f"Error in analysis: {str(e)}")
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"error": f"Analysis failed: {str(e)}"}
@@ -519,4 +547,16 @@ async def shutdown_event():
             try:
                 os.remove(session.file_path)
             except Exception as e:
-                print(f"Error removing file {session.file_path}: {str(e)}") 
+                print(f"Error removing file {session.file_path}: {str(e)}")
+
+@app.options("/api/cors-check")
+@app.get("/api/cors-check")
+async def cors_check(request: Request):
+    """CORS check endpoint to debug CORS issues"""
+    headers = {k: v for k, v in request.headers.items()}
+    return {
+        "cors_check": "ok",
+        "request_headers": headers,
+        "request_method": request.method,
+        "timestamp": datetime.now().isoformat()
+    } 
