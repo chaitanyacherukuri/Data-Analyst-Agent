@@ -21,7 +21,7 @@ interface PreviewData {
 export default function AnalysisPage() {
   const router = useRouter();
   const params = useParams();
-  
+
   // Get sessionId from path params
   const sessionId = params.sessionId as string;
 
@@ -58,7 +58,7 @@ export default function AnalysisPage() {
     try {
       console.log(`Fetching data for session: ${sessionId}`);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
-      
+
       // Fetch session data
       console.log(`Fetching from: ${apiUrl}/api/sessions/${sessionId}`);
       const response = await fetch(`${apiUrl}/api/sessions/${sessionId}`, {
@@ -66,11 +66,11 @@ export default function AnalysisPage() {
           'Accept': 'application/json',
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log("Session data received:", data);
       setPreviewData(data);
@@ -81,11 +81,11 @@ export default function AnalysisPage() {
           'Accept': 'application/json',
         }
       });
-      
+
       if (!questionsResponse.ok) {
         throw new Error(`Failed to fetch predefined questions: ${questionsResponse.status}`);
       }
-      
+
       const questionsData = await questionsResponse.json();
       console.log("Questions data received:", questionsData);
       setPredefinedQuestions(questionsData.questions);
@@ -118,7 +118,7 @@ export default function AnalysisPage() {
     try {
       console.log(`Analyzing session ${sessionId} with question: ${question}`);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
-      
+
       const response = await fetch(`${apiUrl}/api/analyze`, {
         method: 'POST',
         headers: {
@@ -130,16 +130,16 @@ export default function AnalysisPage() {
           question,
         }),
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Analysis failed: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`Analysis failed: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log("Analysis response:", data);
-      
+
       // Handle different response formats
       if (data.content) {
         setAnalysisResults(data.content);
@@ -182,10 +182,15 @@ export default function AnalysisPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading your data...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-blue-50">
+        <div className="text-center p-8 rounded-xl bg-white/80 backdrop-blur-sm shadow-xl border border-blue-100">
+          <div className="relative mx-auto w-16 h-16">
+            <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-blue-200 opacity-20"></div>
+            <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+            <div className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-t-purple-600 border-r-transparent border-b-transparent border-l-transparent animate-spin-slow"></div>
+          </div>
+          <p className="mt-6 text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Loading your data...</p>
+          <p className="mt-2 text-gray-500">Preparing your analysis environment</p>
         </div>
       </div>
     );
@@ -193,12 +198,18 @@ export default function AnalysisPage() {
 
   if (error && !previewData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-          <p className="text-red-600 mb-4">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-blue-50">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg border border-red-100">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Something went wrong</h2>
+          <p className="text-red-600 mb-6 p-3 bg-red-50 rounded-lg">{error}</p>
           <button
             onClick={handleBackClick}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="gradient-button"
           >
             Back to Home
           </button>
@@ -235,7 +246,7 @@ export default function AnalysisPage() {
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isSQL = match && match[1].toLowerCase() === 'sql';
-      
+
       if (!inline && isSQL) {
         // SQL code block with special styling
         return (
@@ -252,7 +263,7 @@ export default function AnalysisPage() {
           </div>
         );
       }
-      
+
       return inline ? (
         <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded" {...props}>
           {children}
@@ -278,19 +289,19 @@ export default function AnalysisPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200 shadow-md sticky top-0 z-10 backdrop-blur-sm bg-white/90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={handleBackClick}
-              className="p-2 rounded-full hover:bg-gray-100 transition"
+              className="p-2 rounded-full hover:bg-blue-50 transition-all duration-200 text-blue-600"
               aria-label="Back to home"
             >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-semibold truncate max-w-[300px]">
+            <h1 className="text-xl font-semibold truncate max-w-[300px] bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
               {previewData?.filename || "Data Analysis"}
             </h1>
           </div>
@@ -300,8 +311,8 @@ export default function AnalysisPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Sidebar with predefined questions */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-24">
-            <h2 className="font-semibold text-lg mb-4 flex items-center">
+          <div className="modern-card p-5 sticky top-24">
+            <h2 className="font-semibold text-lg mb-4 flex items-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
               <ListFilter className="h-5 w-5 mr-2 text-blue-600" />
               Quick Analysis
             </h2>
@@ -310,10 +321,10 @@ export default function AnalysisPage() {
                 <button
                   key={title}
                   onClick={() => handlePredefinedQuestion(text)}
-                  className="w-full text-left p-3 rounded-md hover:bg-blue-50 transition flex items-center justify-between group"
+                  className="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center justify-between group border border-transparent hover:border-blue-100 hover:shadow-sm"
                 >
                   <span className="font-medium text-gray-700 group-hover:text-blue-700">{title}</span>
-                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
+                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-transform duration-200 group-hover:translate-x-1" />
                 </button>
               ))}
             </div>
@@ -323,33 +334,36 @@ export default function AnalysisPage() {
         {/* Main content */}
         <div className="lg:col-span-4 space-y-6">
           {/* Data preview */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center">
+          <div className="modern-card overflow-hidden">
+            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center">
               <PieChart className="h-5 w-5 mr-2 text-blue-600" />
-              <h2 className="font-semibold text-lg">Data Preview</h2>
+              <h2 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Data Preview</h2>
             </div>
             <div className="p-4 overflow-x-auto">
               {previewData?.preview && (
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
+                  <thead>
+                    <tr className="bg-gradient-to-r from-blue-50 to-purple-50">
                       {previewData.columns.map((column, i) => (
                         <th
                           key={i}
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
                         >
                           {column}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {previewData.preview.map((row, rowIndex) => (
-                      <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <tr
+                        key={rowIndex}
+                        className={`transition-colors duration-150 ${rowIndex % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-gray-50/50 hover:bg-blue-50/30'}`}
+                      >
                         {previewData.columns.map((column, colIndex) => (
                           <td
                             key={`${rowIndex}-${colIndex}`}
-                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-600"
                           >
                             {row[column]?.toString() || ""}
                           </td>
@@ -363,11 +377,14 @@ export default function AnalysisPage() {
           </div>
 
           {/* Question form */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="font-semibold text-lg">Ask a Question</h2>
+          <div className="modern-card">
+            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center">
+              <svg className="h-5 w-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h2 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Ask a Question</h2>
             </div>
-            <div className="p-4">
+            <div className="p-5">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative">
                   <input
@@ -375,13 +392,13 @@ export default function AnalysisPage() {
                     value={userQuestion}
                     onChange={(e) => setUserQuestion(e.target.value)}
                     placeholder="E.g., What is the average age? Is there a correlation between age and income?"
-                    className="w-full p-3 pr-12 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="modern-input pr-12"
                     disabled={isAnalyzing}
                   />
                   <button
                     type="submit"
                     disabled={!userQuestion || isAnalyzing}
-                    className="absolute right-2 top-2 p-2 text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition"
+                    className={`absolute right-3 top-3 p-2 rounded-full transition-all duration-200 ${!userQuestion || isAnalyzing ? 'text-gray-400' : 'text-blue-600 hover:text-white hover:bg-blue-600'}`}
                     aria-label="Send question"
                   >
                     <Send className="h-5 w-5" />
@@ -393,24 +410,24 @@ export default function AnalysisPage() {
 
           {/* Analysis results */}
           {(isAnalyzing || analysisResults) && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div className="modern-card">
+              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
                 <div className="flex items-center">
                   <Database className="h-5 w-5 mr-2 text-blue-600" />
-                  <h2 className="font-semibold text-lg">Analysis Results</h2>
+                  <h2 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analysis Results</h2>
                 </div>
                 {analysisResults && !isAnalyzing && (
                   <div className="flex space-x-2">
                     <button
                       onClick={() => analyzeData(userQuestion)}
-                      className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition flex items-center"
+                      className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
                       title="Refresh analysis"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </button>
                     <button
                       onClick={copyToClipboard}
-                      className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition flex items-center"
+                      className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
                       title="Copy results"
                     >
                       {copiedToClipboard ? <CheckCheck className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
@@ -418,18 +435,23 @@ export default function AnalysisPage() {
                   </div>
                 )}
               </div>
-              
-              <div className="p-4">
+
+              <div className="p-5">
                 {isAnalyzing && (
-                  <div className="py-8 text-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Analyzing your data...</p>
+                  <div className="py-12 text-center">
+                    <div className="relative mx-auto w-16 h-16">
+                      <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-blue-200 opacity-20"></div>
+                      <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+                      <div className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-t-purple-600 border-r-transparent border-b-transparent border-l-transparent animate-spin-slow"></div>
+                    </div>
+                    <p className="mt-6 text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analyzing your data...</p>
+                    <p className="mt-2 text-gray-500">Our AI is processing your question</p>
                   </div>
                 )}
-                
+
                 {analysisResults && !isAnalyzing && (
                   <div className="prose max-w-none">
-                    <ReactMarkdown 
+                    <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={MarkdownComponents}
                     >
@@ -444,4 +466,4 @@ export default function AnalysisPage() {
       </div>
     </main>
   );
-} 
+}

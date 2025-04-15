@@ -151,20 +151,22 @@ export default function Home() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-slate-50">
-      <div className="max-w-3xl w-full space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-12 bg-gradient-to-b from-slate-50 to-blue-50">
+      <div className="max-w-4xl w-full space-y-10">
+        {/* Header with gradient text */}
+        <div className="text-center space-y-3">
+          <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
             Data Analysis Agent
           </h1>
-          <p className="text-lg text-gray-600">
-            Upload your CSV file and get AI-powered insights from your data
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Upload your CSV file and get AI-powered insights from your data in seconds
           </p>
         </div>
 
+        {/* Feature cards with hover effects */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center flex flex-col items-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
+            <div className="animated-icon-container mb-2">
               <FileUp className="h-6 w-6 text-blue-600" />
             </div>
             <h2 className="text-xl font-semibold">Easy Upload</h2>
@@ -173,8 +175,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center flex flex-col items-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
+            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(237, 233, 254, 0.8), rgba(237, 233, 254, 0.4))'}}>
               <Brain className="h-6 w-6 text-purple-600" />
             </div>
             <h2 className="text-xl font-semibold">AI Analysis</h2>
@@ -183,8 +185,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center flex flex-col items-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
+            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(220, 252, 231, 0.8), rgba(220, 252, 231, 0.4))'}}>
               <Table className="h-6 w-6 text-green-600" />
             </div>
             <h2 className="text-xl font-semibold">Comprehensive Reports</h2>
@@ -193,8 +195,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center flex flex-col items-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
+            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.8), rgba(254, 243, 199, 0.4))'}}>
               <ArrowRight className="h-6 w-6 text-amber-600" />
             </div>
             <h2 className="text-xl font-semibold">Natural Language</h2>
@@ -204,40 +206,61 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Previous session notification removed - automatic redirection handled in _app.tsx */}
-
+        {/* Modern file upload area */}
         <div
           {...getRootProps()}
-          className={`mt-8 p-8 border-2 border-dashed rounded-lg cursor-pointer flex flex-col items-center justify-center transition-colors ${
-            isDragActive ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:bg-gray-50"
+          className={`mt-10 p-10 border-2 border-dashed rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all duration-300 ${
+            isDragActive
+              ? "border-blue-400 bg-blue-50 shadow-md scale-[1.02]"
+              : "border-gray-300 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md"
           }`}
         >
           <input {...getInputProps()} />
-          <FileUp className="h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-lg font-medium">
+          <div className={`mb-6 p-4 rounded-full ${isDragActive ? 'bg-blue-100' : 'bg-blue-50'} transition-all duration-300`}>
+            <FileUp className={`h-12 w-12 ${isDragActive ? 'text-blue-600' : 'text-blue-400'} transition-colors duration-300`} />
+          </div>
+          <p className="text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
             {isDragActive
               ? "Drop your CSV file here"
-              : "Drag and drop your CSV file here, or click to browse"}
+              : "Drag and drop your CSV file here"}
           </p>
-          <p className="text-sm text-gray-500 mt-1">Only CSV files are supported</p>
+          <p className="text-base text-gray-500 mt-2">or <span className="text-blue-500 hover:text-blue-700 cursor-pointer">click to browse</span></p>
+          <p className="text-sm text-gray-400 mt-4 flex items-center">
+            <span className="inline-block w-1 h-1 rounded-full bg-gray-400 mr-2"></span>
+            Only CSV files up to 5MB are supported
+          </p>
 
+          {/* Status indicators */}
           {isUploading && (
-            <div className="mt-4 text-blue-600">Uploading your file...</div>
+            <div className="mt-6 flex items-center text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+              Uploading your file...
+            </div>
           )}
 
           {uploadError && (
-            <div className="mt-4 text-red-600">{uploadError}</div>
+            <div className="mt-6 text-red-600 bg-red-50 px-4 py-2 rounded-full">{uploadError}</div>
           )}
 
           {uploadedSessionId && (
-            <div className="mt-4 text-center">
-              <p className="text-green-600 mb-2">Upload successful! Redirecting to analysis...</p>
-              <div className="mt-2 flex justify-center">
+            <div className="mt-6 text-center">
+              <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Upload successful! Redirecting to analysis...
+              </div>
+              <div className="mt-3 flex justify-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
               </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="w-full mt-16 text-center text-gray-400 text-sm">
+        <p>© {new Date().getFullYear()} Data Analysis Agent • AI-Powered Data Insights</p>
       </div>
     </main>
   );
