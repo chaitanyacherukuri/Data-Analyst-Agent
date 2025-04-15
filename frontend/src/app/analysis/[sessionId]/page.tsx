@@ -53,8 +53,13 @@ export default function AnalysisPage() {
   }, [sessionId]);
 
   // Handle back navigation
-  const handleBackClick = useCallback(() => {
-    router.push('/');
+  const handleBackClick = useCallback(async () => {
+    try {
+      await router.push('/');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      window.location.href = '/';
+    }
   }, [router]);
 
   // Fetch data preview and predefined questions
@@ -202,12 +207,12 @@ export default function AnalysisPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
           <p className="text-red-600 mb-4">{error}</p>
-          <Link
-            href="/"
+          <button
+            onClick={handleBackClick}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
           >
             Back to Home
-          </Link>
+          </button>
         </div>
       </div>
     );

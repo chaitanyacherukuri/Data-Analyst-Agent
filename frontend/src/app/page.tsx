@@ -12,7 +12,6 @@ export default function Home() {
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
   const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
-  const navigateFormRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
   // Check localStorage for previous session on component mount
@@ -26,9 +25,19 @@ export default function Home() {
   
   // Effect to handle navigation after successful upload
   useEffect(() => {
+    const navigateToAnalysis = async (sessionId: string) => {
+      try {
+        console.log(`Attempting to navigate to /analysis/${sessionId}`);
+        await router.push(`/analysis/${sessionId}`);
+      } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback to window.location if router fails
+        window.location.href = `/analysis/${sessionId}`;
+      }
+    };
+
     if (uploadedSessionId) {
-      console.log(`Navigating to analysis/${uploadedSessionId}`);
-      router.push(`/analysis/${uploadedSessionId}`);
+      navigateToAnalysis(uploadedSessionId);
     }
   }, [uploadedSessionId, router]);
 
@@ -46,16 +55,11 @@ export default function Home() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
       console.log("API URL:", apiUrl);
       
-      // Create a FormData object
       const formData = new FormData();
       formData.append("file", file);
       
-      // Make the fetch request with better error handling
-      console.log("Sending upload request to:", `${apiUrl}/api/upload`);
-      
-      // Set a timeout for the fetch request
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       try {
         const response = await fetch(`${apiUrl}/api/upload`, {
@@ -78,51 +82,42 @@ export default function Home() {
             const errorText = await response.text().catch(() => "Unknown error");
             errorMessage = errorText || `Server error: ${response.status} ${response.statusText}`;
           }
-          
-          console.error("Error response:", errorMessage);
           throw new Error(`Upload failed: ${errorMessage}`);
         }
         
-        let data;
-        try {
-          data = await response.json();
-        } catch (jsonError) {
-          console.error("Error parsing JSON response:", jsonError);
-          throw new Error("Invalid response from server. Could not parse JSON.");
-        }
-        
+        const data = await response.json();
         console.log("Upload successful, received data:", data);
         
         if (!data.session_id) {
-          console.error("Missing session_id in response", data);
           throw new Error("Server response missing session ID. Please try again.");
         }
         
-        // Store session ID in localStorage and trigger navigation
-        const sessionId = data.session_id;
-        localStorage.setItem('lastSessionId', sessionId);
-        console.log(`Session ID ${sessionId} stored in localStorage`);
-        
-        // Set uploaded session ID to trigger navigation
-        setUploadedSessionId(sessionId);
+        // Store session ID and trigger navigation
+        localStorage.setItem('lastSessionId', data.session_id);
+        setUploadedSessionId(data.session_id);
         
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
           throw new Error('Request timed out. Please try again later.');
-        } else {
-          throw fetchError;
         }
+        throw fetchError;
       }
       
     } catch (error: any) {
       console.error("Error uploading file:", error);
-      setUploadError(`Error uploading file: ${error.message || 'Load failed'}. Please try again.`);
+      setUploadError(`Error uploading file: ${error.message || 'Upload failed'}. Please try again.`);
     } finally {
       setIsUploading(false);
     }
-  }, [router]);
-  
+  }, []); // Remove router from dependencies since we handle navigation in the effect
+
+  // Handle continue to analysis click
+  const handleContinueToAnalysis = useCallback((sessionId: string) => {
+    console.log(`Handling continue to analysis for session ${sessionId}`);
+    setUploadedSessionId(sessionId);
+  }, []);
+
   // Dropzone setup
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -147,16 +142,6 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-slate-50">
-      {/* Hidden form for navigation - this will be automatically submitted after successful upload */}
-      <form 
-        ref={navigateFormRef}
-        method="get" 
-        action={uploadedSessionId ? `/analysis/${uploadedSessionId}` : '#'}
-        style={{ display: 'none' }}
-      >
-        <input type="hidden" name="session_id" value={uploadedSessionId || ''} />
-      </form>
-      
       <div className="max-w-3xl w-full space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
@@ -215,12 +200,12 @@ export default function Home() {
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
-            <a
-              href={`/analysis/${lastSessionId}`}
+            <button
+              onClick={() => handleContinueToAnalysis(lastSessionId)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
-            </a>
+            </button>
           </div>
         )}
 
@@ -250,12 +235,6 @@ export default function Home() {
           {uploadedSessionId && (
             <div className="mt-4 text-green-600">
               Upload successful! Redirecting to analysis...
-              <a 
-                href={`/analysis/${uploadedSessionId}`} 
-                className="ml-2 text-blue-600 underline"
-              >
-                Click here if you're not redirected
-              </a>
             </div>
           )}
         </div>
