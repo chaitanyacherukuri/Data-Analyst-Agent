@@ -2,6 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Backgroun
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.responses import PlainTextResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 from pydantic import BaseModel
 import pandas as pd
 import os
@@ -38,6 +40,23 @@ if not GROQ_API_KEY:
 PORT = os.getenv("PORT", "8000")
 print(f"PORT environment variable is set to: {PORT}")
 
+# Custom middleware to log all requests and responses
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Log request info
+        print(f"Request: {request.method} {request.url}")
+        print(f"Client IP: {request.client.host if request.client else 'unknown'}")
+        print(f"Request headers: {dict(request.headers)}")
+        
+        # Process the request and get the response
+        response = await call_next(request)
+        
+        # Log response info
+        print(f"Response status: {response.status_code}")
+        print(f"Response headers: {dict(response.headers)}")
+        
+        return response
+
 app = FastAPI(
     title="Data Analysis API",
     description="API for analyzing CSV data with SQL queries",
@@ -54,14 +73,18 @@ print(f"Python version: {sys.version}")
 print(f"Python path: {sys.executable}")
 print("Environment variables:", {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v else v for k, v in os.environ.items() if not k.startswith('_')})
 
-# Configure CORS with more open settings for troubleshooting
+# Add the logging middleware first
+app.add_middleware(LoggingMiddleware)
+
+# Configure CORS with more permissive settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allowing all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=600,  # Preflight requests can be cached for 10 minutes
 )
 
 # Create temp directory
@@ -72,23 +95,27 @@ sessions = {}
 
 # Fallback model class for when Groq is not available
 class FallbackModel:
-    def __init__(self, id=None, temperature=0, max_tokens=1000, api_key=None):
+    def __init__(self, id="fallback", temperature=0.1, max_tokens=1024, api_key=None):
         self.id = id
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.api_key = api_key
-        print("WARNING: Using FallbackModel because Groq is not available")
-    
-    async def generate(self, prompt, **kwargs):
-        print(f"FallbackModel received prompt: {prompt[:100]}...")
+
+    def generate(self, prompt, **kwargs):
         return {
-            "text": "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support for assistance."
+            "choices": [{
+                "message": {
+                    "content": "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support.",
+                    "role": "assistant"
+                }
+            }]
         }
     
-    def run(self, prompt, **kwargs):
-        """Synchronous version for compatibility"""
-        print(f"FallbackModel (sync) received prompt: {prompt[:100]}...")
-        return "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support for assistance."
+    # Add a synchronous run method to match API expectations
+    def run(self, messages, **kwargs):
+        return {
+            "content": "I'm sorry, but the Groq AI service is currently unavailable. Please try again later or contact support."
+        }
 
 class AnalysisRequest(BaseModel):
     session_id: str
@@ -564,4 +591,71 @@ async def cors_check(request: Request):
         "request_headers": headers,
         "request_method": request.method,
         "timestamp": datetime.now().isoformat()
-    } 
+    }
+
+@app.get("/api/system-info")
+async def system_info():
+    """Detailed system information for diagnosis"""
+    try:
+        # Get installed packages
+        import pkg_resources
+        installed_packages = sorted([f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set])
+        
+        # Check specific modules
+        module_info = {}
+        for module_name in ["groq", "agno", "pandas", "duckdb", "fastapi"]:
+            try:
+                module = importlib.import_module(module_name)
+                module_info[module_name] = getattr(module, "__version__", "installed (no version)")
+            except ImportError:
+                module_info[module_name] = "not installed"
+        
+        # Check disk space
+        import shutil
+        disk_usage = shutil.disk_usage("/")
+        disk_info = {
+            "total_gb": round(disk_usage.total / (1024**3), 2),
+            "used_gb": round(disk_usage.used / (1024**3), 2),
+            "free_gb": round(disk_usage.free / (1024**3), 2),
+            "percent_used": round((disk_usage.used / disk_usage.total) * 100, 2)
+        }
+        
+        # Get memory info if psutil is available
+        memory_info = {}
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            memory_info = {
+                "total_gb": round(mem.total / (1024**3), 2),
+                "available_gb": round(mem.available / (1024**3), 2),
+                "used_gb": round(mem.used / (1024**3), 2),
+                "percent_used": mem.percent
+            }
+        except ImportError:
+            memory_info = {"status": "psutil not installed"}
+        
+        return {
+            "system": {
+                "python_version": sys.version,
+                "platform": sys.platform,
+                "python_path": sys.executable,
+                "environment": {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v else v for k, v in os.environ.items() if k in ["PORT", "GROQ_API_KEY"]}
+            },
+            "disk": disk_info,
+            "memory": memory_info,
+            "modules": module_info,
+            "sessions": {
+                "count": len(sessions),
+                "ids": list(sessions.keys())
+            },
+            "temp_directory": {
+                "exists": os.path.exists("temp"),
+                "file_count": len(os.listdir("temp")) if os.path.exists("temp") else 0
+            },
+            "packages": installed_packages[:20]  # Limit to first 20 for brevity
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        } 

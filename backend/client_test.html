@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; flex-direction: column; gap: 20px; }
+        .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+        button { padding: 8px 16px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0051a8; }
+        input[type="file"] { margin-bottom: 10px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Data Analysis API Test Client</h1>
+    <div class="container">
+        <div class="card">
+            <h2>1. API Health Check</h2>
+            <button id="health-check">Test Root Endpoint</button>
+            <button id="ping">Test Ping</button>
+            <div id="health-result"></div>
+        </div>
+
+        <div class="card">
+            <h2>2. CORS Check</h2>
+            <button id="cors-check">Test CORS</button>
+            <div id="cors-result"></div>
+        </div>
+
+        <div class="card">
+            <h2>3. File Upload</h2>
+            <input type="file" id="file-input" accept=".csv">
+            <button id="upload-file">Upload CSV</button>
+            <div id="upload-result"></div>
+        </div>
+
+        <div class="card">
+            <h2>4. Session Info</h2>
+            <input type="text" id="session-id" placeholder="Session ID">
+            <button id="get-session">Get Session</button>
+            <div id="session-result"></div>
+        </div>
+
+        <div class="card">
+            <h2>5. Run Analysis</h2>
+            <input type="text" id="analysis-session-id" placeholder="Session ID">
+            <input type="text" id="analysis-question" placeholder="Question" value="Summarize this dataset">
+            <button id="run-analysis">Run Analysis</button>
+            <div id="analysis-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Set this to your API endpoint
+        const API_URL = 'https://data-analyst-agent-production.up.railway.app';
+        
+        // Health check
+        document.getElementById('health-check').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                const result = await response.text();
+                document.getElementById('health-result').innerHTML = `
+                    <p class="success">Status: ${response.status}</p>
+                    <pre>${result}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+        
+        // Ping
+        document.getElementById('ping').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_URL}/ping`);
+                const result = await response.text();
+                document.getElementById('health-result').innerHTML = `
+                    <p class="success">Status: ${response.status}</p>
+                    <pre>${result}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+        
+        // CORS check
+        document.getElementById('cors-check').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/cors-check`);
+                const result = await response.json();
+                document.getElementById('cors-result').innerHTML = `
+                    <p class="success">Status: ${response.status}</p>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('cors-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+        
+        // File upload
+        document.getElementById('upload-file').addEventListener('click', async () => {
+            const fileInput = document.getElementById('file-input');
+            if (!fileInput.files.length) {
+                document.getElementById('upload-result').innerHTML = `
+                    <p class="error">Please select a file first</p>
+                `;
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                console.log("Uploading file:", file.name);
+                console.log("File size:", file.size, "bytes");
+                document.getElementById('upload-result').innerHTML = `<p>Uploading...</p>`;
+                
+                const response = await fetch(`${API_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Upload response:", data);
+                
+                document.getElementById('upload-result').innerHTML = `
+                    <p class="success">Upload successful!</p>
+                    <p>Session ID: <strong>${data.session_id}</strong></p>
+                    <p>File: ${data.filename}</p>
+                    <details>
+                        <summary>Preview data</summary>
+                        <pre>${JSON.stringify(data.preview, null, 2)}</pre>
+                    </details>
+                `;
+                
+                // Auto-fill session ID fields
+                document.getElementById('session-id').value = data.session_id;
+                document.getElementById('analysis-session-id').value = data.session_id;
+                
+            } catch (error) {
+                document.getElementById('upload-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+        
+        // Get session
+        document.getElementById('get-session').addEventListener('click', async () => {
+            const sessionId = document.getElementById('session-id').value;
+            if (!sessionId) {
+                document.getElementById('session-result').innerHTML = `
+                    <p class="error">Please enter a session ID</p>
+                `;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/sessions/${sessionId}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to get session: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+                
+                const data = await response.json();
+                document.getElementById('session-result').innerHTML = `
+                    <p class="success">Session found!</p>
+                    <p>File: ${data.filename}</p>
+                    <details>
+                        <summary>Preview data</summary>
+                        <pre>${JSON.stringify(data.preview, null, 2)}</pre>
+                    </details>
+                `;
+            } catch (error) {
+                document.getElementById('session-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+        
+        // Run analysis
+        document.getElementById('run-analysis').addEventListener('click', async () => {
+            const sessionId = document.getElementById('analysis-session-id').value;
+            const question = document.getElementById('analysis-question').value;
+            
+            if (!sessionId || !question) {
+                document.getElementById('analysis-result').innerHTML = `
+                    <p class="error">Please enter both session ID and question</p>
+                `;
+                return;
+            }
+            
+            try {
+                document.getElementById('analysis-result').innerHTML = `<p>Analyzing...</p>`;
+                
+                const response = await fetch(`${API_URL}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        question: question,
+                    }),
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Analysis failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Analysis response:", data);
+                
+                // Display the response
+                document.getElementById('analysis-result').innerHTML = `
+                    <p class="success">Analysis complete!</p>
+                    <h3>Result:</h3>
+                    <div>${data.content || data.response || JSON.stringify(data)}</div>
+                `;
+            } catch (error) {
+                document.getElementById('analysis-result').innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 
