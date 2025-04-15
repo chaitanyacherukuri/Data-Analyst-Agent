@@ -222,40 +222,60 @@ export default function AnalysisPage() {
   const MarkdownComponents = {
     // Custom table rendering
     table: (props: any) => (
-      <div className="overflow-x-auto my-4 rounded-lg border border-gray-200">
+      <div className="overflow-x-auto my-6 rounded-xl border border-gray-100 shadow-sm">
         <table className="min-w-full divide-y divide-gray-200" {...props} />
       </div>
     ),
     // Custom table header rendering
     thead: (props: any) => (
-      <thead className="bg-gray-100" {...props} />
+      <thead className="bg-gradient-to-r from-blue-50 to-purple-50" {...props} />
     ),
     // Custom table header cell rendering
     th: (props: any) => (
-      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" {...props} />
+      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" {...props} />
     ),
     // Custom table body rendering
     tbody: (props: any) => (
-      <tbody className="bg-white divide-y divide-gray-200" {...props} />
+      <tbody className="bg-white divide-y divide-gray-100" {...props} />
     ),
     // Custom table cell rendering
     td: (props: any) => (
-      <td className="px-4 py-3 text-sm text-gray-500" {...props} />
+      <td className="px-4 py-3 text-sm text-gray-600 border-b border-gray-50" {...props} />
     ),
     // Custom code block rendering
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isSQL = match && match[1].toLowerCase() === 'sql';
+      const language = match ? match[1].toLowerCase() : '';
 
       if (!inline && isSQL) {
         // SQL code block with special styling
         return (
-          <div className="my-4 rounded-lg overflow-hidden">
-            <div className="bg-slate-800 px-4 py-2 text-white text-xs flex items-center">
+          <div className="my-6 rounded-xl overflow-hidden shadow-md border border-indigo-100">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-white text-xs flex items-center">
               <Database className="h-4 w-4 mr-2" />
               <span>SQL Query</span>
             </div>
-            <pre className="bg-slate-900 p-4 text-white overflow-x-auto">
+            <pre className="bg-slate-900 p-5 text-white overflow-x-auto">
+              <code className={className} {...props}>
+                {children}
+              </code>
+            </pre>
+          </div>
+        );
+      }
+
+      // Special styling for Python code
+      if (!inline && language === 'python') {
+        return (
+          <div className="my-6 rounded-xl overflow-hidden shadow-md border border-green-100">
+            <div className="bg-gradient-to-r from-green-600 to-teal-600 px-4 py-2 text-white text-xs flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span>Python Code</span>
+            </div>
+            <pre className="bg-slate-900 p-5 text-white overflow-x-auto">
               <code className={className} {...props}>
                 {children}
               </code>
@@ -265,11 +285,11 @@ export default function AnalysisPage() {
       }
 
       return inline ? (
-        <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded" {...props}>
+        <code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium" {...props}>
           {children}
         </code>
       ) : (
-        <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto my-4">
+        <pre className="bg-gray-50 p-5 rounded-xl overflow-x-auto my-6 shadow-sm border border-gray-100">
           <code className={className} {...props}>
             {children}
           </code>
@@ -277,15 +297,22 @@ export default function AnalysisPage() {
       );
     },
     // Custom heading renderers
-    h1: (props: any) => <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b border-gray-200" {...props} />,
-    h2: (props: any) => <h2 className="text-xl font-bold mt-5 mb-3" {...props} />,
-    h3: (props: any) => <h3 className="text-lg font-bold mt-4 mb-2" {...props} />,
+    h1: (props: any) => <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-gray-200 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600" {...props} />,
+    h2: (props: any) => <h2 className="text-xl font-bold mt-6 mb-4 pb-1 border-b border-gray-100 text-blue-700" {...props} />,
+    h3: (props: any) => <h3 className="text-lg font-semibold mt-5 mb-3 text-indigo-700" {...props} />,
+    h4: (props: any) => <h4 className="text-base font-semibold mt-4 mb-2 text-gray-800" {...props} />,
     // Custom paragraph
-    p: (props: any) => <p className="my-3 text-gray-700 leading-relaxed" {...props} />,
+    p: (props: any) => <p className="my-4 text-gray-700 leading-relaxed" {...props} />,
     // Custom bullet lists
-    ul: (props: any) => <ul className="my-3 ml-6 list-disc space-y-1" {...props} />,
-    ol: (props: any) => <ol className="my-3 ml-6 list-decimal space-y-1" {...props} />,
-    li: (props: any) => <li className="text-gray-700" {...props} />,
+    ul: (props: any) => <ul className="my-4 ml-6 list-disc space-y-2" {...props} />,
+    ol: (props: any) => <ol className="my-4 ml-6 list-decimal space-y-2" {...props} />,
+    li: (props: any) => <li className="text-gray-700 pl-1" {...props} />,
+    // Custom blockquote
+    blockquote: (props: any) => <blockquote className="border-l-4 border-blue-200 pl-4 py-2 my-4 bg-blue-50/50 text-gray-700 italic rounded-r-md" {...props} />,
+    // Custom strong
+    strong: (props: any) => <strong className="font-semibold text-blue-800" {...props} />,
+    // Custom emphasis
+    em: (props: any) => <em className="text-gray-800 italic" {...props} />,
   };
 
   return (
@@ -451,12 +478,26 @@ export default function AnalysisPage() {
 
                 {analysisResults && !isAnalyzing && (
                   <div className="prose max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={MarkdownComponents}
-                    >
-                      {analysisResults}
-                    </ReactMarkdown>
+                    <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 rounded-xl mb-6 border border-blue-100/50">
+                      <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">Analysis Summary</h3>
+                      <p className="text-gray-700 italic">The AI has analyzed your data and provided the following insights:</p>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={MarkdownComponents}
+                      >
+                        {analysisResults}
+                      </ReactMarkdown>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                      <div className="text-xs text-gray-500 flex items-center">
+                        <svg className="h-4 w-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Powered by AI analysis
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

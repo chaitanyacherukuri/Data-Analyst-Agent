@@ -134,14 +134,10 @@ export default function Home() {
       'text/csv': ['.csv'],
     },
     maxFiles: 1,
-    maxSize: 5 * 1024 * 1024, // 5MB max file size
+    // Removed file size limit to allow larger CSV files
     onDropRejected: (fileRejections) => {
       const error = fileRejections[0]?.errors[0];
-      if (error?.code === 'file-too-large') {
-        setUploadError('File is too large. Maximum size is 5MB.');
-      } else {
-        setUploadError(`Error: ${error?.message || 'Invalid file'}`);
-      }
+      setUploadError(`Error: ${error?.message || 'Invalid file'}`);
       console.error('File rejection:', fileRejections);
     },
     onDrop: async (acceptedFiles) => {
@@ -227,7 +223,7 @@ export default function Home() {
           <p className="text-base text-gray-500 mt-2">or <span className="text-blue-500 hover:text-blue-700 cursor-pointer">click to browse</span></p>
           <p className="text-sm text-gray-400 mt-4 flex items-center">
             <span className="inline-block w-1 h-1 rounded-full bg-gray-400 mr-2"></span>
-            Only CSV files up to 5MB are supported
+            Only CSV files are supported
           </p>
 
           {/* Status indicators */}
