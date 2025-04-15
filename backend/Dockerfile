@@ -5,17 +5,17 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install dependencies with error handling
-RUN pip install --no-cache-dir -r requirements.txt || echo "Some packages failed to install, continuing..."
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the code
+# Copy application code
 COPY . .
 
-# Set environment variable for port
+# Create temp directory
+RUN mkdir -p temp
+
+# Expose the port
 ENV PORT=8000
 
-# Make sure the entrypoint is executable
-RUN chmod +x start_server.py
-
-# Command to run the application
+# Run the application
 CMD ["python", "start_server.py"] 

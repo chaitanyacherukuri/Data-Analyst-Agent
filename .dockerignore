@@ -1,0 +1,33 @@
+# Version control
+.git
+.gitignore
+
+# Frontend code (not needed for backend container)
+/frontend/
+
+# Development artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Don't ignore these important files
+!backend/requirements.txt
+!backend/app.py
+!backend/start_server.py 

@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy the backend directory contents to the container
-COPY backend/ .
+# Copy the current directory contents to the container
+COPY . .
 
 # Install dependencies with error handling
 RUN pip install --no-cache-dir -r requirements.txt || echo "Some packages failed to install, continuing..."
