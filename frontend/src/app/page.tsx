@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -22,23 +21,32 @@ export default function Home() {
       setShowSessionNotice(true);
     }
   }, []);
-  
+
   // Effect to handle navigation after successful upload
   useEffect(() => {
-    const navigateToAnalysis = async (sessionId: string) => {
-      try {
-        console.log(`Attempting to navigate to /analysis/${sessionId}`);
-        await router.push(`/analysis/${sessionId}`);
-      } catch (error) {
-        console.error('Navigation error:', error);
-        // Fallback to window.location if router fails
-        window.location.href = `/analysis/${sessionId}`;
-      }
-    };
+    let navigationTimeout: NodeJS.Timeout;
 
     if (uploadedSessionId) {
-      navigateToAnalysis(uploadedSessionId);
+      console.log(`Preparing to navigate to /analysis/${uploadedSessionId}`);
+      
+      // Set a short delay to ensure state updates are complete
+      navigationTimeout = setTimeout(() => {
+        try {
+          console.log('Executing navigation...');
+          router.replace(`/analysis/${uploadedSessionId}`);
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // If router navigation fails, try direct navigation
+          window.location.replace(`/analysis/${uploadedSessionId}`);
+        }
+      }, 100);
     }
+
+    return () => {
+      if (navigationTimeout) {
+        clearTimeout(navigationTimeout);
+      }
+    };
   }, [uploadedSessionId, router]);
 
   // Handle file upload
@@ -94,6 +102,8 @@ export default function Home() {
         
         // Store session ID and trigger navigation
         localStorage.setItem('lastSessionId', data.session_id);
+        
+        // Trigger navigation by updating state
         setUploadedSessionId(data.session_id);
         
       } catch (fetchError: any) {
@@ -110,7 +120,7 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, []); // Remove router from dependencies since we handle navigation in the effect
+  }, []);
 
   // Handle continue to analysis click
   const handleContinueToAnalysis = useCallback((sessionId: string) => {
@@ -235,6 +245,12 @@ export default function Home() {
           {uploadedSessionId && (
             <div className="mt-4 text-green-600">
               Upload successful! Redirecting to analysis...
+              <button
+                onClick={() => router.replace(`/analysis/${uploadedSessionId}`)}
+                className="ml-2 text-blue-600 underline"
+              >
+                Click here if not redirected
+              </button>
             </div>
           )}
         </div>
