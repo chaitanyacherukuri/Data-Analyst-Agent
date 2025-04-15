@@ -29,7 +29,7 @@ A modern full-stack web application for AI-powered data analysis. Upload CSV fil
 ## 🖥️ Demo
 
 <p align="center">
-  <img src="https://i.imgur.com/JGQi5hE.png" alt="Data Analysis Agent Demo" width="800" />
+  <img src="./assets/Home_Page.png" alt="Data Analysis Agent Demo" width="800" />
 </p>
 
 ## 🛠️ Tech Stack
@@ -143,7 +143,13 @@ The application will be available at:
 3. **Ask Questions**: Use natural language to ask questions about your data
 4. **Get Insights**: Receive AI-generated insights and explanations
 
-## 🔍 Example Queries
+## � Sample Data
+
+To help you get started quickly, we've included several sample CSV files in the `sample_data` directory:
+
+Simply download these files and upload them to the application to start exploring the data analysis capabilities.
+
+## �🔍 Example Queries
 
 - "What's the average age in this dataset?"
 - "Show me the correlation between income and education level"
