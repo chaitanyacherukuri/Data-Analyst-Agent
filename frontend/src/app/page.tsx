@@ -11,6 +11,8 @@ export default function Home() {
   const [uploadError, setUploadError] = useState("");
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Check localStorage for previous session on component mount
   useEffect(() => {
@@ -21,12 +23,37 @@ export default function Home() {
     }
   }, []);
 
-  // Navigate to analysis page - using Next.js router instead of direct location change
+  // Effect to handle navigation after successful upload
+  useEffect(() => {
+    if (sessionId && isNavigating) {
+      // Log navigation attempt
+      console.log(`Navigation effect triggered to /analysis/${sessionId}`);
+      
+      // Use a slight delay to ensure state updates complete before navigation
+      const navigationTimer = setTimeout(() => {
+        try {
+          console.log(`Executing navigation to /analysis/${sessionId}`);
+          router.push(`/analysis/${sessionId}`);
+        } catch (error) {
+          console.error("Navigation error:", error);
+          
+          // Fallback to direct navigation if router fails
+          window.location.href = `/analysis/${sessionId}`;
+        }
+      }, 300);
+      
+      return () => clearTimeout(navigationTimer);
+    }
+  }, [sessionId, isNavigating, router]);
+
+  // Navigate to analysis page - using Next.js router with better error handling
   const handleUpload = async (file: File) => {
     if (!file) return;
     
     setIsUploading(true);
     setUploadError("");
+    setIsNavigating(false);
+    setSessionId(null);
     
     try {
       console.log("Uploading file:", file.name);
@@ -40,6 +67,7 @@ export default function Home() {
       formData.append("file", file);
       
       // Make the fetch request
+      console.log("Sending upload request to:", `${apiUrl}/api/upload`);
       const response = await fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         body: formData,
@@ -63,9 +91,11 @@ export default function Home() {
       // Store session ID in localStorage
       localStorage.setItem('lastSessionId', data.session_id);
       
-      // Use Next.js router for navigation
-      console.log(`Navigating to: /analysis/${data.session_id}`);
-      router.push(`/analysis/${data.session_id}`);
+      // Set state to trigger navigation effect
+      setSessionId(data.session_id);
+      setIsNavigating(true);
+      
+      console.log(`Prepared navigation to: /analysis/${data.session_id}`);
       
     } catch (error: any) {
       console.error("Error uploading file:", error);
@@ -77,7 +107,15 @@ export default function Home() {
   
   // Direct navigation to session without file upload - using Next.js router
   const goToAnalysis = (sessionId: string) => {
-    router.push(`/analysis/${sessionId}`);
+    try {
+      console.log(`Direct navigation to: /analysis/${sessionId}`);
+      router.push(`/analysis/${sessionId}`);
+    } catch (error) {
+      console.error("Direct navigation error:", error);
+      
+      // Fallback to window location if router fails
+      window.location.href = `/analysis/${sessionId}`;
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
