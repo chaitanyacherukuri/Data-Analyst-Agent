@@ -40,7 +40,7 @@ export default function Home() {
       }, 1000);
     } catch (error) {
       console.error('Navigation failed:', error);
-      setUploadError('Navigation failed. Please try the link below.');
+      setUploadError('Navigation failed. Please try refreshing the page or go to /analysis/' + sessionId);
     }
   }, []);
 
@@ -254,17 +254,11 @@ export default function Home() {
           )}
 
           {uploadedSessionId && (
-            <div className="mt-4 flex flex-col items-center">
+            <div className="mt-4 text-center">
               <p className="text-green-600 mb-2">Upload successful! Redirecting to analysis...</p>
-              <a
-                href={`/analysis/${uploadedSessionId}`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition mt-2 text-center"
-              >
-                Go to Analysis Page
-              </a>
-              <p className="text-sm text-gray-500 mt-2">
-                If you're not redirected automatically, please click the button above.
-              </p>
+              <div className="mt-2 flex justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
             </div>
           )}
         </div>
