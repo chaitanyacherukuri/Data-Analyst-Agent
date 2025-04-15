@@ -72,6 +72,7 @@ export default function AnalysisPage() {
     setError("");
 
     try {
+      console.log(`Analyzing session ${sessionId} with question: ${question}`);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
@@ -84,11 +85,25 @@ export default function AnalysisPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to analyze data');
+        const errorText = await response.text();
+        console.error(`Analysis failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Analysis failed: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      setAnalysisResults(data.content);
+      console.log("Analysis response:", data);
+      
+      // Handle different response formats
+      if (data.content) {
+        setAnalysisResults(data.content);
+      } else if (data.response) {
+        setAnalysisResults(data.response);
+      } else if (typeof data === 'string') {
+        setAnalysisResults(data);
+      } else {
+        console.warn("Unexpected response format:", data);
+        setAnalysisResults(JSON.stringify(data, null, 2));
+      }
     } catch (error) {
       console.error("Analysis error:", error);
       setError("Failed to analyze data. Please try a different question.");
