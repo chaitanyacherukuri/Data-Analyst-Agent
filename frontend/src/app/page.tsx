@@ -41,54 +41,86 @@ export default function Home() {
       
       // Make the fetch request with better error handling
       console.log("Sending upload request to:", `${apiUrl}/api/upload`);
-      const response = await fetch(`${apiUrl}/api/upload`, {
-        method: 'POST',
-        body: formData,
-        // Add these headers to potentially improve CORS handling
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
-      }
+      // Set a timeout for the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
-      const data = await response.json();
-      console.log("Upload successful, received data:", data);
-      
-      if (!data.session_id) {
-        console.error("Missing session_id in response", data);
-        setUploadError("Server response missing session ID. Please try again.");
-        return;
-      }
-      
-      // Store session ID in localStorage
-      const sessionId = data.session_id;
-      localStorage.setItem('lastSessionId', sessionId);
-      console.log(`Session ID ${sessionId} stored in localStorage`);
-      
-      // Navigate using Next.js router
-      console.log(`Navigating to /analysis/${sessionId}`);
-      
-      // This try-catch covers any issues with the navigation itself
       try {
-        router.push(`/analysis/${sessionId}`);
+        const response = await fetch(`${apiUrl}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+          // Add these headers to potentially improve CORS handling
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
         
-        // Add fallback navigation after a short delay if router.push doesn't seem to work
-        setTimeout(() => {
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes(`/analysis/${sessionId}`)) {
-            console.log("Fallback navigation triggered after delay");
-            window.location.href = `/analysis/${sessionId}`;
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          let errorMessage = "";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.detail || `Server error: ${response.status} ${response.statusText}`;
+          } catch (jsonError) {
+            // If we can't parse the JSON, use the text response or a default message
+            const errorText = await response.text().catch(() => "Unknown error");
+            errorMessage = errorText || `Server error: ${response.status} ${response.statusText}`;
           }
-        }, 500);
-      } catch (navigationError) {
-        console.error("Navigation error:", navigationError);
-        // Direct fallback if router.push throws
-        window.location.href = `/analysis/${sessionId}`;
+          
+          console.error("Error response:", errorMessage);
+          throw new Error(`Upload failed: ${errorMessage}`);
+        }
+        
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error("Error parsing JSON response:", jsonError);
+          throw new Error("Invalid response from server. Could not parse JSON.");
+        }
+        
+        console.log("Upload successful, received data:", data);
+        
+        if (!data.session_id) {
+          console.error("Missing session_id in response", data);
+          throw new Error("Server response missing session ID. Please try again.");
+        }
+        
+        // Store session ID in localStorage
+        const sessionId = data.session_id;
+        localStorage.setItem('lastSessionId', sessionId);
+        console.log(`Session ID ${sessionId} stored in localStorage`);
+        
+        // Navigate using Next.js router
+        console.log(`Navigating to /analysis/${sessionId}`);
+        
+        // This try-catch covers any issues with the navigation itself
+        try {
+          router.push(`/analysis/${sessionId}`);
+          
+          // Add fallback navigation after a short delay if router.push doesn't seem to work
+          setTimeout(() => {
+            const currentPath = window.location.pathname;
+            if (!currentPath.includes(`/analysis/${sessionId}`)) {
+              console.log("Fallback navigation triggered after delay");
+              window.location.href = `/analysis/${sessionId}`;
+            }
+          }, 500);
+        } catch (navigationError) {
+          console.error("Navigation error:", navigationError);
+          // Direct fallback if router.push throws
+          window.location.href = `/analysis/${sessionId}`;
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again later.');
+        } else {
+          throw fetchError;
+        }
       }
       
     } catch (error: any) {

@@ -16,6 +16,7 @@ import csv
 import importlib
 import sys
 import traceback
+import numpy as np
 from fastapi import Request
 
 # Import with try/except to handle potential import errors
@@ -92,6 +93,22 @@ os.makedirs("temp", exist_ok=True)
 
 # Session store (in production, use Redis or a database)
 sessions = {}
+
+# Custom JSON encoder to handle NaN and Infinity values
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            # Replace NaN/Infinity with None to make it JSON serializable
+            if np.isnan(obj) or np.isinf(obj):
+                return None
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, pd.Series):
+            return self.default(obj.values)
+        return super(NpEncoder, self).default(obj)
 
 # Fallback model class for when Groq is not available
 class FallbackModel:
@@ -227,7 +244,8 @@ async def upload_file(file: UploadFile = File(...)):
             print("Error: CSV file has no data or no columns")
             raise HTTPException(status_code=400, detail="The CSV file has no data or columns")
         
-        preview = df.head(5).to_dict(orient="records")
+        # Convert Pandas DataFrame to a serializable format, handling NaN values
+        preview = df.head(5).replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict(orient="records")
         columns = list(df.columns)
         print(f"Successfully parsed CSV with {len(df)} rows, {len(columns)} columns")
         print(f"Available columns: {columns}")
@@ -251,7 +269,9 @@ async def upload_file(file: UploadFile = File(...)):
     }
     print(f"Upload successful. Session ID: {session_id}")
     print(f"Response data size: {len(str(response_data))} chars")
-    return response_data
+    
+    # Return response using the custom JSON encoder
+    return JSONResponse(content=response_data, encoder=NpEncoder)
 
 def get_agent(file_path: str):
     """Initialize DuckDB tools and Agno agent"""
@@ -468,22 +488,22 @@ async def analyze_data(request: AnalysisRequest):
             response = await agent.arun(request.question)
             # Return in the format expected by frontend
             if isinstance(response, str):
-                return {"content": response}
+                return JSONResponse(content={"content": response}, encoder=NpEncoder)
             elif hasattr(response, 'content'):
-                return {"content": response.content}
+                return JSONResponse(content={"content": response.content}, encoder=NpEncoder)
             else:
-                return {"content": str(response)}
+                return JSONResponse(content={"content": str(response)}, encoder=NpEncoder)
         except (AttributeError, TypeError) as e:
             # Fall back to sync version if async not available
             print(f"Using synchronous run as async failed: {e}")
             response = agent.run(request.question)
             # Handle different response formats
             if hasattr(response, 'content'):
-                return {"content": response.content}
+                return JSONResponse(content={"content": response.content}, encoder=NpEncoder)
             elif isinstance(response, str):
-                return {"content": response}
+                return JSONResponse(content={"content": response}, encoder=NpEncoder)
             else:
-                return {"content": str(response)}
+                return JSONResponse(content={"content": str(response)}, encoder=NpEncoder)
     except Exception as e:
         print(f"Error in analysis: {str(e)}")
         traceback.print_exc()
@@ -502,17 +522,23 @@ async def get_session(session_id: str):
     
     try:
         df = pd.read_csv(session.file_path)
-        preview = df.head(5).to_dict(orient="records")
+        # Handle NaN and Infinity values by replacing them with None
+        preview = df.head(5).replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict(orient="records")
         columns = list(df.columns)
     except Exception as e:
+        print(f"Error reading session CSV: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
     
-    return {
+    response_data = {
         "session_id": session_id,
         "filename": session.file_name,
         "preview": preview,
         "columns": columns
     }
+    
+    # Return using the custom JSON encoder to handle any remaining non-serializable values
+    return JSONResponse(content=response_data, encoder=NpEncoder)
 
 # Predefined analysis questions endpoint
 @app.get("/api/predefined-questions")
