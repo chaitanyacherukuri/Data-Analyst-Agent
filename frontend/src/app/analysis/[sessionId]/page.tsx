@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Send, ArrowLeft, ChevronRight, ChevronDown, Copy, CheckCheck, RefreshCw, Database, PieChart, ListFilter } from "lucide-react";
+import { Send, ArrowLeft, ChevronRight, Copy, CheckCheck, RefreshCw, Database, PieChart, ListFilter } from "lucide-react";
 
 // Types
 interface AnalysisQuestion {
@@ -22,12 +21,9 @@ interface PreviewData {
 export default function AnalysisPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   
-  // Get sessionId from path params or query params
-  const sessionIdFromPath = params.sessionId as string;
-  const sessionIdFromQuery = searchParams.get('session_id');
-  const sessionId = sessionIdFromPath || sessionIdFromQuery;
+  // Get sessionId from path params
+  const sessionId = params.sessionId as string;
 
   // States
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +46,55 @@ export default function AnalysisPage() {
 
     console.log(`Analysis page: Using session ID ${sessionId}`);
     localStorage.setItem('lastSessionId', sessionId);
+
+    // Fetch data immediately when sessionId is available
+    fetchInitialData();
+  }, [sessionId]);
+
+  // Fetch data preview and predefined questions
+  const fetchInitialData = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      console.log(`Fetching data for session: ${sessionId}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+      
+      // Fetch session data
+      console.log(`Fetching from: ${apiUrl}/api/sessions/${sessionId}`);
+      const response = await fetch(`${apiUrl}/api/sessions/${sessionId}`, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Session data received:", data);
+      setPreviewData(data);
+
+      // Fetch predefined questions
+      const questionsResponse = await fetch(`${apiUrl}/api/predefined-questions`, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!questionsResponse.ok) {
+        throw new Error(`Failed to fetch predefined questions: ${questionsResponse.status}`);
+      }
+      
+      const questionsData = await questionsResponse.json();
+      console.log("Questions data received:", questionsData);
+      setPredefinedQuestions(questionsData.questions);
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+      setError("Failed to load data. Please try again or upload a new file.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [sessionId]);
 
   // Handle back navigation
@@ -61,62 +106,6 @@ export default function AnalysisPage() {
       window.location.href = '/';
     }
   }, [router]);
-
-  // Fetch data preview and predefined questions
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        console.log(`Fetching data for session: ${sessionId}`);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
-        
-        // Fetch session data
-        console.log(`Fetching from: ${apiUrl}/api/sessions/${sessionId}`);
-        const response = await fetch(`${apiUrl}/api/sessions/${sessionId}`, {
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-        
-        if (!response.ok) {
-          console.error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
-          throw new Error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log("Session data received:", data);
-        setPreviewData(data);
-
-        // Fetch predefined questions
-        const questionsResponse = await fetch(`${apiUrl}/api/predefined-questions`, {
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-        
-        if (!questionsResponse.ok) {
-          console.error(`Failed to fetch questions: ${questionsResponse.status} ${questionsResponse.statusText}`);
-          throw new Error(`Failed to fetch predefined questions: ${questionsResponse.status}`);
-        }
-        
-        const questionsData = await questionsResponse.json();
-        console.log("Questions data received:", questionsData);
-        setPredefinedQuestions(questionsData.questions);
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        setError("Failed to load data. Please try again or upload a new file.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Only fetch if we have a valid session ID
-    if (sessionId) {
-      fetchInitialData();
-    } else {
-      setError("Invalid session ID");
-      setIsLoading(false);
-    }
-  }, [sessionId]);
 
   // Analyze data function
   const analyzeData = useCallback(async (question: string) => {

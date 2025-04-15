@@ -22,32 +22,28 @@ export default function Home() {
     }
   }, []);
 
+  // Handle navigation
+  const navigateToAnalysis = useCallback((sessionId: string) => {
+    try {
+      // Force a hard navigation to ensure proper page load
+      window.location.href = `/analysis/${sessionId}`;
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      setUploadError('Navigation failed. Please try the link below.');
+    }
+  }, []);
+
   // Effect to handle navigation after successful upload
   useEffect(() => {
-    let navigationTimeout: NodeJS.Timeout;
-
     if (uploadedSessionId) {
-      console.log(`Preparing to navigate to /analysis/${uploadedSessionId}`);
-      
-      // Set a short delay to ensure state updates are complete
-      navigationTimeout = setTimeout(() => {
-        try {
-          console.log('Executing navigation...');
-          router.replace(`/analysis/${uploadedSessionId}`);
-        } catch (error) {
-          console.error('Navigation error:', error);
-          // If router navigation fails, try direct navigation
-          window.location.replace(`/analysis/${uploadedSessionId}`);
-        }
+      // Add a small delay to ensure state updates are complete
+      const timer = setTimeout(() => {
+        navigateToAnalysis(uploadedSessionId);
       }, 100);
-    }
 
-    return () => {
-      if (navigationTimeout) {
-        clearTimeout(navigationTimeout);
-      }
-    };
-  }, [uploadedSessionId, router]);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadedSessionId, navigateToAnalysis]);
 
   // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
@@ -102,8 +98,6 @@ export default function Home() {
         
         // Store session ID and trigger navigation
         localStorage.setItem('lastSessionId', data.session_id);
-        
-        // Trigger navigation by updating state
         setUploadedSessionId(data.session_id);
         
       } catch (fetchError: any) {
@@ -125,8 +119,8 @@ export default function Home() {
   // Handle continue to analysis click
   const handleContinueToAnalysis = useCallback((sessionId: string) => {
     console.log(`Handling continue to analysis for session ${sessionId}`);
-    setUploadedSessionId(sessionId);
-  }, []);
+    navigateToAnalysis(sessionId);
+  }, [navigateToAnalysis]);
 
   // Dropzone setup
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -246,7 +240,7 @@ export default function Home() {
             <div className="mt-4 text-green-600">
               Upload successful! Redirecting to analysis...
               <button
-                onClick={() => router.replace(`/analysis/${uploadedSessionId}`)}
+                onClick={() => navigateToAnalysis(uploadedSessionId)}
                 className="ml-2 text-blue-600 underline"
               >
                 Click here if not redirected
