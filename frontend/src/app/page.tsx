@@ -4,42 +4,63 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [showSessionNotice, setShowSessionNotice] = useState(false);
+  const [sessionExpiryTime, setSessionExpiryTime] = useState<number | null>(null);
 
-  // This useEffect will run once on component mount
+  // Check localStorage for previous session on component mount
   useEffect(() => {
-    // Check for a previous session ID in localStorage
     const storedSessionId = localStorage.getItem('lastSessionId');
-    if (storedSessionId) {
-      setLastSessionId(storedSessionId);
+    const storedExpiryTime = localStorage.getItem('sessionExpiryTime');
+    
+    if (storedSessionId && storedExpiryTime) {
+      const expiryTime = parseInt(storedExpiryTime);
+      const now = Date.now();
+      
+      // Only show session notice if the session is still valid (less than 24 hours old)
+      if (expiryTime > now) {
+        setLastSessionId(storedSessionId);
+        setSessionExpiryTime(expiryTime);
+        setShowSessionNotice(true);
+      } else {
+        // Clear expired session data
+        localStorage.removeItem('lastSessionId');
+        localStorage.removeItem('sessionExpiryTime');
+      }
     }
   }, []);
 
-  // Handle manual navigation to analysis page
   const navigateToAnalysis = (sessionId: string) => {
-    console.log(`Manually navigating to /analysis/${sessionId}`);
+    if (!sessionId) return;
+    
+    // Log navigation attempt
+    console.log(`Navigating to analysis page for session: ${sessionId}`);
+    
+    // Save the page we're trying to navigate to
+    const targetPath = `/analysis/${sessionId}`;
+    localStorage.setItem('lastNavigation', targetPath);
+    localStorage.setItem('navAttemptTime', Date.now().toString());
+    
+    // First attempt - use Next.js router
     try {
-      // Attempt navigation with router first
-      router.push(`/analysis/${sessionId}`);
-      
-      // Set a backup using window.location if the router navigation fails
-      setTimeout(() => {
-        if (document.location.pathname === '/') {
-          console.log('Router navigation failed, using window.location');
-          window.location.href = `/analysis/${sessionId}`;
-        }
-      }, 500);
+      // Force hard navigation
+      window.location.href = targetPath;
     } catch (error) {
-      console.error('Navigation error:', error);
-      // Direct fallback
-      window.location.href = `/analysis/${sessionId}`;
+      console.error('Hard navigation failed:', error);
+      
+      // Fallback to router
+      try {
+        router.push(targetPath);
+      } catch (routerError) {
+        console.error('Router navigation also failed:', routerError);
+        // Last resort
+        document.location.href = targetPath;
+      }
     }
   };
 
@@ -71,9 +92,11 @@ export default function Home() {
       try {
         console.log("Uploading file:", file.name);
         console.log("File size:", file.size, "bytes");
-        console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+        console.log("API URL:", apiUrl);
+        
+        const response = await fetch(`${apiUrl}/api/upload`, {
           method: 'POST',
           body: formData,
         });
@@ -93,11 +116,17 @@ export default function Home() {
           return;
         }
         
-        // Store the session ID in localStorage
+        // Store session with 24-hour expiry
+        const expiryTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
         localStorage.setItem('lastSessionId', data.session_id);
-        setLastSessionId(data.session_id);
+        localStorage.setItem('sessionExpiryTime', expiryTime.toString());
         
-        // Navigate to analysis page
+        // Update state
+        setLastSessionId(data.session_id);
+        setSessionExpiryTime(expiryTime);
+        setShowSessionNotice(true);
+        
+        // Navigate to analysis page with hard redirect
         navigateToAnalysis(data.session_id);
         
       } catch (error: any) {
@@ -163,14 +192,18 @@ export default function Home() {
           </div>
         </div>
 
-        {lastSessionId && (
+        {showSessionNotice && lastSessionId && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between">
             <div className="mb-3 sm:mb-0">
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
             <button
-              onClick={() => navigateToAnalysis(lastSessionId)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigateToAnalysis(lastSessionId);
+              }}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
