@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
@@ -9,6 +9,10 @@ export default function Home() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
+  // Check if we're running in development mode and enable some debug features
+  const isDev = process.env.NODE_ENV === 'development';
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -30,6 +34,7 @@ export default function Home() {
       
       setIsUploading(true);
       setUploadError("");
+      setDebugInfo(null);
       
       const file = acceptedFiles[0];
       const formData = new FormData();
@@ -54,8 +59,30 @@ export default function Home() {
         const data = await response.json();
         console.log("Upload successful:", data);
         
-        // Navigate to analysis page with session ID
-        router.push(`/analysis/${data.session_id}`);
+        if (!data.session_id) {
+          console.error("Missing session_id in response", data);
+          setDebugInfo(`Response missing session_id: ${JSON.stringify(data, null, 2)}`);
+          throw new Error('Missing session ID in server response');
+        }
+        
+        // Add a small delay before navigation to ensure state updates
+        setTimeout(() => {
+          // First store the session ID in localStorage as a fallback
+          localStorage.setItem('lastSessionId', data.session_id);
+          
+          // Try to navigate
+          console.log(`Navigating to /analysis/${data.session_id}`);
+          router.push(`/analysis/${data.session_id}`);
+          
+          // If we're still here after a moment, try a different approach
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              console.log("Using window.location for navigation");
+              window.location.href = `/analysis/${data.session_id}`;
+            }
+          }, 500);
+        }, 100);
+        
       } catch (error: any) {
         console.error("Error uploading file:", error);
         setUploadError(`Error uploading file: ${error.message || 'Load failed'}. Please try again.`);
@@ -64,6 +91,14 @@ export default function Home() {
       }
     },
   });
+
+  // This useEffect will check if we have a last session ID and provide a recovery option
+  useEffect(() => {
+    const lastSessionId = localStorage.getItem('lastSessionId');
+    if (lastSessionId) {
+      setDebugInfo(`Previous upload detected. <a href="/analysis/${lastSessionId}" class="text-blue-600 underline">Continue to analysis</a>`);
+    }
+  }, []);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-slate-50">
@@ -140,6 +175,10 @@ export default function Home() {
           
           {uploadError && (
             <div className="mt-4 text-red-600">{uploadError}</div>
+          )}
+          
+          {debugInfo && (
+            <div className="mt-4 p-3 bg-gray-100 rounded text-sm" dangerouslySetInnerHTML={{ __html: debugInfo }}></div>
           )}
         </div>
       </div>
