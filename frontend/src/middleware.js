@@ -25,10 +25,11 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
-// Configure matcher to only run middleware on specific paths
+// Configure matcher with simpler patterns that Next.js supports
 export const config = {
   matcher: [
-    // Match all paths except static assets
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(png|jpg|svg|ico)$).*)',
+    // Match the homepage and analysis routes
+    '/',
+    '/analysis/:path*'
   ],
 }; 
