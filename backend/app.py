@@ -527,6 +527,10 @@ async def delete_session(session_id: str):
 # Session cleanup (should use a proper task scheduler in production)
 @app.on_event("startup")
 async def startup_event():
+    """
+    Startup event handler - runs when the application starts
+    This initializes the application and cleans up old temporary files
+    """
     # Clean old files
     try:
         if os.path.exists("temp"):
@@ -536,6 +540,7 @@ async def startup_event():
                     # Remove files older than 24 hours
                     if (datetime.now().timestamp() - os.path.getmtime(file_path)) > 86400:
                         os.remove(file_path)
+                        print(f"Cleaned up old file: {file_path}")
     except Exception as e:
         print(f"Error cleaning up old files: {str(e)}")
 
