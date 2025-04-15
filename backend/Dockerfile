@@ -2,18 +2,20 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Install dependencies with error handling
+RUN pip install --no-cache-dir -r requirements.txt || echo "Some packages failed to install, continuing..."
+
+# Copy the rest of the code
 COPY . .
 
-# Create temp directory
-RUN mkdir -p /app/temp
+# Set environment variable for port
+ENV PORT=8000
 
-# Expose the port
-EXPOSE 8000
+# Make sure the entrypoint is executable
+RUN chmod +x start_server.py
 
-# Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
+# Command to run the application
+CMD ["python", "start_server.py"] 

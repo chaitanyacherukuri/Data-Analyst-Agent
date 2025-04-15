@@ -14,7 +14,7 @@ setup(
         "agno==1.3.1",
         "duckdb==0.10.0",
         "groq==0.4.2",
-        "types-requests==2.31.0.20240704",
+        "types-requests==2.31.0.1",
         "httpx>=0.24.1",
     ],
 ) 

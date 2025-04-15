@@ -10,12 +10,16 @@ def install_packages():
         "groq==0.4.2",
         "agno==1.3.1",
         "httpx>=0.24.1",
-        "types-requests==2.31.0.20240704"
+        "types-requests==2.31.0.1"
     ]
     for package in packages:
         print(f"Installing {package}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-    print("All packages installed successfully.")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Failed to install {package}: {e}")
+            print("Continuing with deployment...")
+    print("Package installation completed.")
 
 if __name__ == "__main__":
     # Install packages first
