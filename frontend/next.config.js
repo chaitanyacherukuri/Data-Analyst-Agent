@@ -1,21 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disable React strict mode to prevent double renders
   swcMinify: true,
   output: 'standalone',
-  distDir: '.next',
-  trailingSlash: false,
-  
-  // Configure redirects to ensure proper navigation
-  async redirects() {
-    return [
-      {
-        source: '/analysis',
-        destination: '/',
-        permanent: false,
-      },
-    ];
-  },
   
   // Ensure proper rewrites for our app
   async rewrites() {
@@ -39,12 +26,6 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
-  
-  // Additional experimental features to improve routing
-  experimental: {
-    appDir: true,
-    serverActions: true,
-  }
 };
 
 module.exports = nextConfig; 

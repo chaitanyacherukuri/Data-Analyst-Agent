@@ -1,67 +1,81 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
 export default function Home() {
-  const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
-  const [sessionExpiryTime, setSessionExpiryTime] = useState<number | null>(null);
 
   // Check localStorage for previous session on component mount
   useEffect(() => {
     const storedSessionId = localStorage.getItem('lastSessionId');
-    const storedExpiryTime = localStorage.getItem('sessionExpiryTime');
-    
-    if (storedSessionId && storedExpiryTime) {
-      const expiryTime = parseInt(storedExpiryTime);
-      const now = Date.now();
-      
-      // Only show session notice if the session is still valid (less than 24 hours old)
-      if (expiryTime > now) {
-        setLastSessionId(storedSessionId);
-        setSessionExpiryTime(expiryTime);
-        setShowSessionNotice(true);
-      } else {
-        // Clear expired session data
-        localStorage.removeItem('lastSessionId');
-        localStorage.removeItem('sessionExpiryTime');
-      }
+    if (storedSessionId) {
+      setLastSessionId(storedSessionId);
+      setShowSessionNotice(true);
     }
   }, []);
 
-  const navigateToAnalysis = (sessionId: string) => {
-    if (!sessionId) return;
+  // Navigate to analysis page - using direct HTML form with target
+  const handleUpload = async (file: File) => {
+    if (!file) return;
     
-    // Log navigation attempt
-    console.log(`Navigating to analysis page for session: ${sessionId}`);
+    setIsUploading(true);
+    setUploadError("");
     
-    // Save the page we're trying to navigate to
-    const targetPath = `/analysis/${sessionId}`;
-    localStorage.setItem('lastNavigation', targetPath);
-    localStorage.setItem('navAttemptTime', Date.now().toString());
-    
-    // First attempt - use Next.js router
     try {
-      // Force hard navigation
-      window.location.href = targetPath;
-    } catch (error) {
-      console.error('Hard navigation failed:', error);
+      console.log("Uploading file:", file.name);
+      console.log("File size:", file.size, "bytes");
       
-      // Fallback to router
-      try {
-        router.push(targetPath);
-      } catch (routerError) {
-        console.error('Router navigation also failed:', routerError);
-        // Last resort
-        document.location.href = targetPath;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+      console.log("API URL:", apiUrl);
+      
+      // Create a FormData object
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      // Make the fetch request
+      const response = await fetch(`${apiUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
       }
+      
+      const data = await response.json();
+      console.log("Upload successful:", data);
+      
+      if (!data.session_id) {
+        console.error("Missing session_id in response", data);
+        setUploadError("Server response missing session ID. Please try again.");
+        return;
+      }
+      
+      // Store session ID in localStorage
+      localStorage.setItem('lastSessionId', data.session_id);
+      
+      // Force navigation to analysis page
+      console.log(`Navigating to: /analysis/${data.session_id}`);
+      window.location.href = `/analysis/${data.session_id}`;
+      
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      setUploadError(`Error uploading file: ${error.message || 'Load failed'}. Please try again.`);
+    } finally {
+      setIsUploading(false);
     }
+  };
+  
+  // Direct navigation to session without file upload
+  const goToAnalysis = (sessionId: string) => {
+    window.location.href = `/analysis/${sessionId}`;
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -81,60 +95,7 @@ export default function Home() {
     },
     onDrop: async (acceptedFiles) => {
       if (acceptedFiles.length === 0) return;
-      
-      setIsUploading(true);
-      setUploadError("");
-      
-      const file = acceptedFiles[0];
-      const formData = new FormData();
-      formData.append("file", file);
-      
-      try {
-        console.log("Uploading file:", file.name);
-        console.log("File size:", file.size, "bytes");
-        
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
-        console.log("API URL:", apiUrl);
-        
-        const response = await fetch(`${apiUrl}/api/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Error response:", errorText);
-          throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
-        }
-        
-        const data = await response.json();
-        console.log("Upload successful:", data);
-        
-        if (!data.session_id) {
-          console.error("Missing session_id in response", data);
-          setUploadError("Server response missing session ID. Please try again.");
-          return;
-        }
-        
-        // Store session with 24-hour expiry
-        const expiryTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
-        localStorage.setItem('lastSessionId', data.session_id);
-        localStorage.setItem('sessionExpiryTime', expiryTime.toString());
-        
-        // Update state
-        setLastSessionId(data.session_id);
-        setSessionExpiryTime(expiryTime);
-        setShowSessionNotice(true);
-        
-        // Navigate to analysis page with hard redirect
-        navigateToAnalysis(data.session_id);
-        
-      } catch (error: any) {
-        console.error("Error uploading file:", error);
-        setUploadError(`Error uploading file: ${error.message || 'Load failed'}. Please try again.`);
-      } finally {
-        setIsUploading(false);
-      }
+      await handleUpload(acceptedFiles[0]);
     },
   });
 
@@ -198,16 +159,12 @@ export default function Home() {
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigateToAnalysis(lastSessionId);
-              }}
+            <a 
+              href={`/analysis/${lastSessionId}`}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
-            </button>
+            </a>
           </div>
         )}
 
