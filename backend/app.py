@@ -24,6 +24,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY environment variable is not set. Please add it to your .env file.")
 
+# Get PORT from environment or use default
+PORT = os.getenv("PORT", "8000")
+print(f"PORT environment variable is set to: {PORT}")
+
 app = FastAPI(title="Data Analysis API")
 
 # Print environment information for debugging
