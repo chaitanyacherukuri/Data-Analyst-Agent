@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import pandas as pd
 import os
@@ -11,6 +12,8 @@ from datetime import datetime
 import json
 import csv
 import importlib
+import sys
+import traceback
 
 # Import with try/except to handle potential import errors
 try:
@@ -28,27 +31,36 @@ load_dotenv()
 # Check for required environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY environment variable is not set. Please add it to your .env file.")
+    print("WARNING: GROQ_API_KEY environment variable is not set. Fallback model will be used.")
 
 # Get PORT from environment or use default
 PORT = os.getenv("PORT", "8000")
 print(f"PORT environment variable is set to: {PORT}")
 
-app = FastAPI(title="Data Analysis API")
+app = FastAPI(
+    title="Data Analysis API",
+    description="API for analyzing CSV data with SQL queries",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 
 # Print environment information for debugging
 print("Starting FastAPI application...")
 print(f"GROQ_API_KEY is {'set' if GROQ_API_KEY else 'NOT SET'}")
 print(f"Current working directory: {os.getcwd()}")
-print("Environment variables:", {k: v for k, v in os.environ.items() if not k.startswith('_')})
+print(f"Python version: {sys.version}")
+print(f"Python path: {sys.executable}")
+print("Environment variables:", {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v else v for k, v in os.environ.items() if not k.startswith('_')})
 
-# Add CORS middleware with more permissive settings
+# Configure CORS with more open settings for troubleshooting
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins during development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Create temp directory
@@ -81,15 +93,28 @@ class SessionData(BaseModel):
     created_at: datetime
 
 # Add a root endpoint for health checks
-@app.get("/")
+@app.get("/", response_class=PlainTextResponse)
 async def root():
     """Health check endpoint"""
-    return {"status": "ok", "message": "Data Analysis API is running"}
+    return "Data Analysis API is running. Access /docs for API documentation."
 
 # Add a ping endpoint for simpler checks
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 async def ping():
-    return {"ping": "pong"}
+    return "pong"
+
+# Add a system info endpoint for debugging
+@app.get("/debug")
+async def debug():
+    """Return system information for debugging"""
+    return {
+        "python_version": sys.version,
+        "current_directory": os.getcwd(),
+        "files_in_directory": os.listdir(),
+        "environment": {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v else v for k, v in os.environ.items() if not k.startswith('_')},
+        "temp_directory": os.path.exists("temp"),
+        "memory_usage": sessions,
+    }
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
