@@ -154,11 +154,11 @@ export default function Home() {
     <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-12 bg-gradient-to-b from-slate-50 to-blue-50">
       <div className="max-w-4xl w-full space-y-10">
         {/* Header with gradient text */}
-        <div className="text-center space-y-3">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="text-center space-y-6">
+          <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 leading-tight pb-1 drop-shadow-sm">
             Data Analysis Agent
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Upload your CSV file and get AI-powered insights from your data in seconds
           </p>
         </div>
