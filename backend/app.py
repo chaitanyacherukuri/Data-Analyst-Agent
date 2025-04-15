@@ -26,10 +26,16 @@ if not GROQ_API_KEY:
 
 app = FastAPI(title="Data Analysis API")
 
-# Add CORS middleware with specific configuration for Vercel
+# Print environment information for debugging
+print("Starting FastAPI application...")
+print(f"GROQ_API_KEY is {'set' if GROQ_API_KEY else 'NOT SET'}")
+print(f"Current working directory: {os.getcwd()}")
+print("Environment variables:", {k: v for k, v in os.environ.items() if not k.startswith('_')})
+
+# Add CORS middleware with more permissive settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://data-analyst-agent-seven.vercel.app", "http://localhost:3000"],
+    allow_origins=["*"],  # Allow all origins during development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +55,17 @@ class SessionData(BaseModel):
     file_path: str
     file_name: str
     created_at: datetime
+
+# Add a root endpoint for health checks
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"status": "ok", "message": "Data Analysis API is running"}
+
+# Add a ping endpoint for simpler checks
+@app.get("/ping")
+async def ping():
+    return {"ping": "pong"}
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
