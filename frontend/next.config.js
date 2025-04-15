@@ -4,14 +4,6 @@ const nextConfig = {
   swcMinify: true,
   output: 'standalone',
   
-  // Disable unnecessary optimizations that might interfere with navigation
-  experimental: {
-    // Optimize server-side navigation
-    appDir: true,
-    // Ensure proper client-side navigation
-    scrollRestoration: true
-  },
-  
   // Enhanced API rewrites with more flexible fallback
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
@@ -22,23 +14,11 @@ const nextConfig = {
       {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,
-      },
-      // Add a fallback for analysis page to prevent 404s
-      {
-        source: '/analysis/:session*',
-        destination: '/analysis/[sessionId]', 
-        has: [
-          {
-            type: 'query',
-            key: 'session_id',
-            value: '(?<session>.*)',
-          },
-        ],
-      },
+      }
     ];
   },
   
-  // Explicitly define the App Router routes that should prerender
+  // Explicitly define headers
   async headers() {
     return [
       {

@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server';
 
-// Minimal middleware that doesn't interfere with navigation
+// Empty middleware that just passes through all requests
 export function middleware(request) {
-  // Just logging the path for debugging purposes
-  // Skip processing and allow all requests to proceed normally
   return NextResponse.next();
 }
 
-// Minimal matcher that only applies to critical paths
+// Define matcher for valid paths
 export const config = {
-  matcher: [
-    // We don't need to apply middleware to any routes now
-    // This empty array means middleware doesn't run on any routes
-    []
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }; 
