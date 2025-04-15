@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function Home() {
     }
   }, []);
 
-  // Navigate to analysis page - using direct HTML form with target
+  // Navigate to analysis page - using Next.js router instead of direct location change
   const handleUpload = async (file: File) => {
     if (!file) return;
     
@@ -61,9 +63,9 @@ export default function Home() {
       // Store session ID in localStorage
       localStorage.setItem('lastSessionId', data.session_id);
       
-      // Force navigation to analysis page
+      // Use Next.js router for navigation
       console.log(`Navigating to: /analysis/${data.session_id}`);
-      window.location.href = `/analysis/${data.session_id}`;
+      router.push(`/analysis/${data.session_id}`);
       
     } catch (error: any) {
       console.error("Error uploading file:", error);
@@ -73,9 +75,9 @@ export default function Home() {
     }
   };
   
-  // Direct navigation to session without file upload
+  // Direct navigation to session without file upload - using Next.js router
   const goToAnalysis = (sessionId: string) => {
-    window.location.href = `/analysis/${sessionId}`;
+    router.push(`/analysis/${sessionId}`);
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -159,12 +161,12 @@ export default function Home() {
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
-            <a 
-              href={`/analysis/${lastSessionId}`}
+            <button 
+              onClick={() => goToAnalysis(lastSessionId)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
-            </a>
+            </button>
           </div>
         )}
 
