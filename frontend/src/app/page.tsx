@@ -15,6 +15,16 @@ export default function Home() {
       'text/csv': ['.csv'],
     },
     maxFiles: 1,
+    maxSize: 5 * 1024 * 1024, // 5MB max file size
+    onDropRejected: (fileRejections) => {
+      const error = fileRejections[0]?.errors[0];
+      if (error?.code === 'file-too-large') {
+        setUploadError('File is too large. Maximum size is 5MB.');
+      } else {
+        setUploadError(`Error: ${error?.message || 'Invalid file'}`);
+      }
+      console.error('File rejection:', fileRejections);
+    },
     onDrop: async (acceptedFiles) => {
       if (acceptedFiles.length === 0) return;
       
@@ -27,6 +37,7 @@ export default function Home() {
       
       try {
         console.log("Uploading file:", file.name);
+        console.log("File size:", file.size, "bytes");
         console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
@@ -35,9 +46,9 @@ export default function Home() {
         });
         
         if (!response.ok) {
-          const errorData = await response.text();
-          console.error("Error response:", errorData);
-          throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
         }
         
         const data = await response.json();
@@ -47,7 +58,7 @@ export default function Home() {
         router.push(`/analysis/${data.session_id}`);
       } catch (error: any) {
         console.error("Error uploading file:", error);
-        setUploadError(`Error uploading file: ${error.message || 'Unknown error'}. Please try again.`);
+        setUploadError(`Error uploading file: ${error.message || 'Load failed'}. Please try again.`);
       } finally {
         setIsUploading(false);
       }

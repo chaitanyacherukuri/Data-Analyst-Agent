@@ -9,6 +9,7 @@ import shutil
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import json
+import csv
 
 from agno.agent import Agent
 from agno.models.groq import Groq
@@ -54,11 +55,13 @@ async def upload_file(file: UploadFile = File(...)):
     """Upload a CSV file and create a new analysis session"""
     # Better error checking for file
     if not file or not file.filename:
+        print("Error: No file uploaded or filename is empty")
         raise HTTPException(status_code=400, detail="No file uploaded")
         
     print(f"Received file upload: {file.filename}")
     
     if not file.filename.endswith('.csv'):
+        print(f"Error: File type not supported - {file.filename}")
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
     
     # Generate session ID and save file
@@ -72,6 +75,12 @@ async def upload_file(file: UploadFile = File(...)):
         # Save file content
         print(f"Saving file to {file_path}")
         contents = await file.read()
+        
+        # Check if file is empty
+        if not contents:
+            print("Error: File is empty")
+            raise HTTPException(status_code=400, detail="The uploaded file is empty")
+            
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
         
@@ -91,7 +100,25 @@ async def upload_file(file: UploadFile = File(...)):
     # Read file preview
     try:
         print(f"Parsing CSV file: {file_path}")
-        df = pd.read_csv(file_path)
+        # Try to detect the delimiter
+        with open(file_path, 'r', encoding='utf-8') as f:
+            sample = f.read(4096)  # Read a sample to detect the delimiter
+            
+        sniffer = csv.Sniffer()
+        try:
+            dialect = sniffer.sniff(sample)
+            print(f"Detected delimiter: '{dialect.delimiter}'")
+            df = pd.read_csv(file_path, sep=dialect.delimiter)
+        except:
+            # Fall back to standard CSV reading if delimiter detection fails
+            print("Delimiter detection failed, falling back to default comma")
+            df = pd.read_csv(file_path)
+            
+        # Validate that the file has at least one row and one column
+        if df.empty or df.shape[1] == 0:
+            print("Error: CSV file has no data or no columns")
+            raise HTTPException(status_code=400, detail="The CSV file has no data or columns")
+        
         preview = df.head(5).to_dict(orient="records")
         columns = list(df.columns)
         print(f"Successfully parsed CSV with {len(df)} rows, {len(columns)} columns")
