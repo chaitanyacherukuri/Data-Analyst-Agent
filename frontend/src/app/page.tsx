@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function Home() {
-  const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
+  const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
+  const navigateFormRef = useRef<HTMLFormElement>(null);
 
   // Check localStorage for previous session on component mount
   useEffect(() => {
@@ -21,13 +21,22 @@ export default function Home() {
       setShowSessionNotice(true);
     }
   }, []);
+  
+  // Effect to handle navigation after successful upload using form submission
+  useEffect(() => {
+    if (uploadedSessionId && navigateFormRef.current) {
+      console.log(`Navigating to analysis/${uploadedSessionId} via form submission`);
+      navigateFormRef.current.submit();
+    }
+  }, [uploadedSessionId]);
 
-  // Handle file upload in a more streamlined way
+  // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
     
     setIsUploading(true);
     setUploadError("");
+    setUploadedSessionId(null);
     
     try {
       console.log("Uploading file:", file.name, "Size:", file.size, "bytes");
@@ -51,7 +60,6 @@ export default function Home() {
           method: 'POST',
           body: formData,
           signal: controller.signal,
-          // Add these headers to potentially improve CORS handling
           headers: {
             'Accept': 'application/json',
           },
@@ -65,7 +73,6 @@ export default function Home() {
             const errorData = await response.json();
             errorMessage = errorData.detail || `Server error: ${response.status} ${response.statusText}`;
           } catch (jsonError) {
-            // If we can't parse the JSON, use the text response or a default message
             const errorText = await response.text().catch(() => "Unknown error");
             errorMessage = errorText || `Server error: ${response.status} ${response.statusText}`;
           }
@@ -94,26 +101,9 @@ export default function Home() {
         localStorage.setItem('lastSessionId', sessionId);
         console.log(`Session ID ${sessionId} stored in localStorage`);
         
-        // Navigate using Next.js router
-        console.log(`Navigating to /analysis/${sessionId}`);
+        // Trigger navigation via form submission
+        setUploadedSessionId(sessionId);
         
-        // This try-catch covers any issues with the navigation itself
-        try {
-          router.push(`/analysis/${sessionId}`);
-          
-          // Add fallback navigation after a short delay if router.push doesn't seem to work
-          setTimeout(() => {
-            const currentPath = window.location.pathname;
-            if (!currentPath.includes(`/analysis/${sessionId}`)) {
-              console.log("Fallback navigation triggered after delay");
-              window.location.href = `/analysis/${sessionId}`;
-            }
-          }, 500);
-        } catch (navigationError) {
-          console.error("Navigation error:", navigationError);
-          // Direct fallback if router.push throws
-          window.location.href = `/analysis/${sessionId}`;
-        }
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
@@ -129,9 +119,9 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, [router]);
+  }, []);
   
-  // Dropzone setup with better error handling
+  // Dropzone setup
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'text/csv': ['.csv'],
@@ -155,6 +145,16 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-slate-50">
+      {/* Hidden form for navigation - this will be automatically submitted after successful upload */}
+      <form 
+        ref={navigateFormRef}
+        method="get" 
+        action={uploadedSessionId ? `/analysis/${uploadedSessionId}` : '#'}
+        style={{ display: 'none' }}
+      >
+        <input type="hidden" name="session_id" value={uploadedSessionId || ''} />
+      </form>
+      
       <div className="max-w-3xl w-full space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
@@ -213,12 +213,12 @@ export default function Home() {
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
-            <Link 
+            <a
               href={`/analysis/${lastSessionId}`}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
-            </Link>
+            </a>
           </div>
         )}
 
@@ -243,6 +243,18 @@ export default function Home() {
           
           {uploadError && (
             <div className="mt-4 text-red-600">{uploadError}</div>
+          )}
+          
+          {uploadedSessionId && (
+            <div className="mt-4 text-green-600">
+              Upload successful! Redirecting to analysis...
+              <a 
+                href={`/analysis/${uploadedSessionId}`} 
+                className="ml-2 text-blue-600 underline"
+              >
+                Click here if you're not redirected
+              </a>
+            </div>
           )}
         </div>
       </div>

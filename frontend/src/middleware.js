@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
 
-// Simple middleware that just logs navigation but doesn't interfere with it
+// Minimal middleware that doesn't interfere with navigation
 export function middleware(request) {
-  // Get the current path
-  const { pathname } = request.nextUrl;
-  
-  // Log the path for debugging purposes
-  console.log(`Middleware: Handling request for path: ${pathname}`);
-  
-  // Allow the request to proceed without any modifications
+  // Just logging the path for debugging purposes
+  // Skip processing and allow all requests to proceed normally
   return NextResponse.next();
 }
 
-// Apply middleware only to the most essential routes to minimize interference
+// Minimal matcher that only applies to critical paths
 export const config = {
   matcher: [
-    '/',
-    '/analysis/:path*'
+    // We don't need to apply middleware to any routes now
+    // This empty array means middleware doesn't run on any routes
+    []
   ],
 }; 

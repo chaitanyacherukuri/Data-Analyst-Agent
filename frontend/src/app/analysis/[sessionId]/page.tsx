@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,7 +22,12 @@ interface PreviewData {
 export default function AnalysisPage() {
   const router = useRouter();
   const params = useParams();
-  const sessionId = params.sessionId as string;
+  const searchParams = useSearchParams();
+  
+  // Get sessionId from path params or query params
+  const sessionIdFromPath = params.sessionId as string;
+  const sessionIdFromQuery = searchParams.get('session_id');
+  const sessionId = sessionIdFromPath || sessionIdFromQuery;
 
   // States
   const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +38,14 @@ export default function AnalysisPage() {
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+
+  // Store session ID in localStorage when loaded successfully
+  useEffect(() => {
+    if (sessionId) {
+      console.log(`Analysis page: Using session ID ${sessionId}`);
+      localStorage.setItem('lastSessionId', sessionId);
+    }
+  }, [sessionId]);
 
   // Fetch data preview and predefined questions
   useEffect(() => {
