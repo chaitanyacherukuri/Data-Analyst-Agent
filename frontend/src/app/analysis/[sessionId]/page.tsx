@@ -39,13 +39,23 @@ export default function AnalysisPage() {
   const [error, setError] = useState("");
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
-  // Store session ID in localStorage when loaded successfully
+  // Validate and store session ID
   useEffect(() => {
-    if (sessionId) {
-      console.log(`Analysis page: Using session ID ${sessionId}`);
-      localStorage.setItem('lastSessionId', sessionId);
+    if (!sessionId) {
+      console.error('No session ID provided');
+      setError("No session ID provided");
+      setIsLoading(false);
+      return;
     }
+
+    console.log(`Analysis page: Using session ID ${sessionId}`);
+    localStorage.setItem('lastSessionId', sessionId);
   }, [sessionId]);
+
+  // Handle back navigation
+  const handleBackClick = useCallback(() => {
+    router.push('/');
+  }, [router]);
 
   // Fetch data preview and predefined questions
   useEffect(() => {
@@ -280,7 +290,7 @@ export default function AnalysisPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => router.push("/")}
+              onClick={handleBackClick}
               className="p-2 rounded-full hover:bg-gray-100 transition"
               aria-label="Back to home"
             >

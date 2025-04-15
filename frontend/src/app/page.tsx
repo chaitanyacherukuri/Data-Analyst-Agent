@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
@@ -12,6 +13,7 @@ export default function Home() {
   const [showSessionNotice, setShowSessionNotice] = useState(false);
   const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
   const navigateFormRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   // Check localStorage for previous session on component mount
   useEffect(() => {
@@ -22,13 +24,13 @@ export default function Home() {
     }
   }, []);
   
-  // Effect to handle navigation after successful upload using form submission
+  // Effect to handle navigation after successful upload
   useEffect(() => {
-    if (uploadedSessionId && navigateFormRef.current) {
-      console.log(`Navigating to analysis/${uploadedSessionId} via form submission`);
-      navigateFormRef.current.submit();
+    if (uploadedSessionId) {
+      console.log(`Navigating to analysis/${uploadedSessionId}`);
+      router.push(`/analysis/${uploadedSessionId}`);
     }
-  }, [uploadedSessionId]);
+  }, [uploadedSessionId, router]);
 
   // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
@@ -96,12 +98,12 @@ export default function Home() {
           throw new Error("Server response missing session ID. Please try again.");
         }
         
-        // Store session ID in localStorage
+        // Store session ID in localStorage and trigger navigation
         const sessionId = data.session_id;
         localStorage.setItem('lastSessionId', sessionId);
         console.log(`Session ID ${sessionId} stored in localStorage`);
         
-        // Trigger navigation via form submission
+        // Set uploaded session ID to trigger navigation
         setUploadedSessionId(sessionId);
         
       } catch (fetchError: any) {
@@ -119,7 +121,7 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [router]);
   
   // Dropzone setup
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
