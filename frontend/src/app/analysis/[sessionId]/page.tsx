@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Send, ArrowLeft, ChevronRight, ChevronDown, Copy, CheckCheck, RefreshCw, Database, PieChart, ListFilter } from "lucide-react";
@@ -37,20 +38,40 @@ export default function AnalysisPage() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
+        console.log(`Fetching data for session: ${sessionId}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+        
         // Fetch session data
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sessions/${sessionId}`);
+        console.log(`Fetching from: ${apiUrl}/api/sessions/${sessionId}`);
+        const response = await fetch(`${apiUrl}/api/sessions/${sessionId}`, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch session data');
+          console.error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch session data: ${response.status} ${response.statusText}`);
         }
+        
         const data = await response.json();
+        console.log("Session data received:", data);
         setPreviewData(data);
 
         // Fetch predefined questions
-        const questionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefined-questions`);
+        const questionsResponse = await fetch(`${apiUrl}/api/predefined-questions`, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
         if (!questionsResponse.ok) {
-          throw new Error('Failed to fetch predefined questions');
+          console.error(`Failed to fetch questions: ${questionsResponse.status} ${questionsResponse.statusText}`);
+          throw new Error(`Failed to fetch predefined questions: ${questionsResponse.status}`);
         }
+        
         const questionsData = await questionsResponse.json();
+        console.log("Questions data received:", questionsData);
         setPredefinedQuestions(questionsData.questions);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -60,12 +81,18 @@ export default function AnalysisPage() {
       }
     };
 
-    fetchInitialData();
+    // Only fetch if we have a valid session ID
+    if (sessionId) {
+      fetchInitialData();
+    } else {
+      setError("Invalid session ID");
+      setIsLoading(false);
+    }
   }, [sessionId]);
 
   // Analyze data function
-  const analyzeData = async (question: string) => {
-    if (!question) return;
+  const analyzeData = useCallback(async (question: string) => {
+    if (!question || !sessionId) return;
 
     setIsAnalyzing(true);
     setAnalysisResults(null);
@@ -73,10 +100,13 @@ export default function AnalysisPage() {
 
     try {
       console.log(`Analyzing session ${sessionId} with question: ${question}`);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analyze`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+      
+      const response = await fetch(`${apiUrl}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           session_id: sessionId,
@@ -110,7 +140,7 @@ export default function AnalysisPage() {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [sessionId]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -122,11 +152,6 @@ export default function AnalysisPage() {
   const handlePredefinedQuestion = (questionText: string) => {
     setUserQuestion(questionText);
     analyzeData(questionText);
-  };
-
-  // Back to home
-  const handleBackToHome = () => {
-    router.push("/");
   };
 
   // Copy results to clipboard
@@ -154,12 +179,12 @@ export default function AnalysisPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
           <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={handleBackToHome}
+          <Link
+            href="/"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
           >
             Back to Home
-          </button>
+          </Link>
         </div>
       </div>
     );
@@ -242,7 +267,7 @@ export default function AnalysisPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={handleBackToHome}
+              onClick={() => router.push("/")}
               className="p-2 rounded-full hover:bg-gray-100 transition"
               aria-label="Back to home"
             >

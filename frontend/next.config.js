@@ -4,14 +4,30 @@ const nextConfig = {
   swcMinify: true,
   output: 'standalone',
   
-  // Ensure proper rewrites for our app
+  // Enhanced API rewrites with more flexible fallback
   async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
+    console.log(`Configuring API rewrites to: ${apiUrl}`);
+    
     return [
       {
         source: '/api/:path*',
-        destination: process.env.NEXT_PUBLIC_API_URL 
-          ? `${process.env.NEXT_PUBLIC_API_URL}/api/:path*` 
-          : 'https://data-analyst-agent-production.up.railway.app/api/:path*',
+        destination: `${apiUrl}/api/:path*`,
+      },
+    ];
+  },
+  
+  // Explicitly define the App Router routes that should prerender
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store',
+          },
+        ],
       },
     ];
   },

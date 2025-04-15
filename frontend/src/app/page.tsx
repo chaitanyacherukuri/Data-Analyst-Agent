@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
@@ -11,8 +12,6 @@ export default function Home() {
   const [uploadError, setUploadError] = useState("");
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Check localStorage for previous session on component mount
   useEffect(() => {
@@ -23,41 +22,15 @@ export default function Home() {
     }
   }, []);
 
-  // Effect to handle navigation after successful upload
-  useEffect(() => {
-    if (sessionId && isNavigating) {
-      // Log navigation attempt
-      console.log(`Navigation effect triggered to /analysis/${sessionId}`);
-      
-      // Use a slight delay to ensure state updates complete before navigation
-      const navigationTimer = setTimeout(() => {
-        try {
-          console.log(`Executing navigation to /analysis/${sessionId}`);
-          router.push(`/analysis/${sessionId}`);
-        } catch (error) {
-          console.error("Navigation error:", error);
-          
-          // Fallback to direct navigation if router fails
-          window.location.href = `/analysis/${sessionId}`;
-        }
-      }, 300);
-      
-      return () => clearTimeout(navigationTimer);
-    }
-  }, [sessionId, isNavigating, router]);
-
-  // Navigate to analysis page - using Next.js router with better error handling
-  const handleUpload = async (file: File) => {
+  // Handle file upload in a more streamlined way
+  const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
     
     setIsUploading(true);
     setUploadError("");
-    setIsNavigating(false);
-    setSessionId(null);
     
     try {
-      console.log("Uploading file:", file.name);
-      console.log("File size:", file.size, "bytes");
+      console.log("Uploading file:", file.name, "Size:", file.size, "bytes");
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
       console.log("API URL:", apiUrl);
@@ -66,11 +39,15 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
       
-      // Make the fetch request
+      // Make the fetch request with better error handling
       console.log("Sending upload request to:", `${apiUrl}/api/upload`);
       const response = await fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         body: formData,
+        // Add these headers to potentially improve CORS handling
+        headers: {
+          'Accept': 'application/json',
+        },
       });
       
       if (!response.ok) {
@@ -80,7 +57,7 @@ export default function Home() {
       }
       
       const data = await response.json();
-      console.log("Upload successful:", data);
+      console.log("Upload successful, received data:", data);
       
       if (!data.session_id) {
         console.error("Missing session_id in response", data);
@@ -89,13 +66,30 @@ export default function Home() {
       }
       
       // Store session ID in localStorage
-      localStorage.setItem('lastSessionId', data.session_id);
+      const sessionId = data.session_id;
+      localStorage.setItem('lastSessionId', sessionId);
+      console.log(`Session ID ${sessionId} stored in localStorage`);
       
-      // Set state to trigger navigation effect
-      setSessionId(data.session_id);
-      setIsNavigating(true);
+      // Navigate using Next.js router
+      console.log(`Navigating to /analysis/${sessionId}`);
       
-      console.log(`Prepared navigation to: /analysis/${data.session_id}`);
+      // This try-catch covers any issues with the navigation itself
+      try {
+        router.push(`/analysis/${sessionId}`);
+        
+        // Add fallback navigation after a short delay if router.push doesn't seem to work
+        setTimeout(() => {
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes(`/analysis/${sessionId}`)) {
+            console.log("Fallback navigation triggered after delay");
+            window.location.href = `/analysis/${sessionId}`;
+          }
+        }, 500);
+      } catch (navigationError) {
+        console.error("Navigation error:", navigationError);
+        // Direct fallback if router.push throws
+        window.location.href = `/analysis/${sessionId}`;
+      }
       
     } catch (error: any) {
       console.error("Error uploading file:", error);
@@ -103,21 +97,9 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [router]);
   
-  // Direct navigation to session without file upload - using Next.js router
-  const goToAnalysis = (sessionId: string) => {
-    try {
-      console.log(`Direct navigation to: /analysis/${sessionId}`);
-      router.push(`/analysis/${sessionId}`);
-    } catch (error) {
-      console.error("Direct navigation error:", error);
-      
-      // Fallback to window location if router fails
-      window.location.href = `/analysis/${sessionId}`;
-    }
-  };
-
+  // Dropzone setup with better error handling
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'text/csv': ['.csv'],
@@ -199,12 +181,12 @@ export default function Home() {
               <p className="text-blue-700 font-medium">Previous upload detected</p>
               <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
             </div>
-            <button 
-              onClick={() => goToAnalysis(lastSessionId)}
+            <Link 
+              href={`/analysis/${lastSessionId}`}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Continue to Analysis
-            </button>
+            </Link>
           </div>
         )}
 
