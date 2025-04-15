@@ -25,8 +25,19 @@ export default function Home() {
   // Handle navigation
   const navigateToAnalysis = useCallback((sessionId: string) => {
     try {
+      console.log(`Attempting navigation to /analysis/${sessionId}`);
       // Force a hard navigation to ensure proper page load
       window.location.href = `/analysis/${sessionId}`;
+
+      // Add a fallback in case the navigation doesn't trigger a page reload
+      setTimeout(() => {
+        console.log('Navigation may have failed - checking current URL');
+        if (!window.location.pathname.includes(`/analysis/${sessionId}`)) {
+          console.log('Still on the same page, trying alternative navigation');
+          // Try an alternative approach
+          window.location.replace(`/analysis/${sessionId}`);
+        }
+      }, 1000);
     } catch (error) {
       console.error('Navigation failed:', error);
       setUploadError('Navigation failed. Please try the link below.');
@@ -36,35 +47,41 @@ export default function Home() {
   // Effect to handle navigation after successful upload
   useEffect(() => {
     if (uploadedSessionId) {
+      console.log(`Upload successful with session ID: ${uploadedSessionId}, preparing navigation`);
+
       // Add a small delay to ensure state updates are complete
       const timer = setTimeout(() => {
+        console.log('Delay complete, initiating navigation');
         navigateToAnalysis(uploadedSessionId);
-      }, 100);
+      }, 300); // Increased delay for more reliability
 
-      return () => clearTimeout(timer);
+      return () => {
+        console.log('Clearing navigation timeout');
+        clearTimeout(timer);
+      };
     }
   }, [uploadedSessionId, navigateToAnalysis]);
 
   // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
-    
+
     setIsUploading(true);
     setUploadError("");
     setUploadedSessionId(null);
-    
+
     try {
       console.log("Uploading file:", file.name, "Size:", file.size, "bytes");
-      
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
       console.log("API URL:", apiUrl);
-      
+
       const formData = new FormData();
       formData.append("file", file);
-      
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
+
       try {
         const response = await fetch(`${apiUrl}/api/upload`, {
           method: 'POST',
@@ -74,9 +91,9 @@ export default function Home() {
             'Accept': 'application/json',
           },
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           let errorMessage = "";
           try {
@@ -88,18 +105,18 @@ export default function Home() {
           }
           throw new Error(`Upload failed: ${errorMessage}`);
         }
-        
+
         const data = await response.json();
         console.log("Upload successful, received data:", data);
-        
+
         if (!data.session_id) {
           throw new Error("Server response missing session ID. Please try again.");
         }
-        
+
         // Store session ID and trigger navigation
         localStorage.setItem('lastSessionId', data.session_id);
         setUploadedSessionId(data.session_id);
-        
+
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
@@ -107,7 +124,7 @@ export default function Home() {
         }
         throw fetchError;
       }
-      
+
     } catch (error: any) {
       console.error("Error uploading file:", error);
       setUploadError(`Error uploading file: ${error.message || 'Upload failed'}. Please try again.`);
@@ -227,28 +244,31 @@ export default function Home() {
               : "Drag and drop your CSV file here, or click to browse"}
           </p>
           <p className="text-sm text-gray-500 mt-1">Only CSV files are supported</p>
-          
+
           {isUploading && (
             <div className="mt-4 text-blue-600">Uploading your file...</div>
           )}
-          
+
           {uploadError && (
             <div className="mt-4 text-red-600">{uploadError}</div>
           )}
-          
+
           {uploadedSessionId && (
-            <div className="mt-4 text-green-600">
-              Upload successful! Redirecting to analysis...
-              <button
-                onClick={() => navigateToAnalysis(uploadedSessionId)}
-                className="ml-2 text-blue-600 underline"
+            <div className="mt-4 flex flex-col items-center">
+              <p className="text-green-600 mb-2">Upload successful! Redirecting to analysis...</p>
+              <a
+                href={`/analysis/${uploadedSessionId}`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition mt-2 text-center"
               >
-                Click here if not redirected
-              </button>
+                Go to Analysis Page
+              </a>
+              <p className="text-sm text-gray-500 mt-2">
+                If you're not redirected automatically, please click the button above.
+              </p>
             </div>
           )}
         </div>
       </div>
     </main>
   );
-} 
+}
