@@ -8,19 +8,12 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
-  const [showSessionNotice, setShowSessionNotice] = useState(false);
+  // Removed unused state variables for lastSessionId and showSessionNotice
   const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
   const router = useRouter();
 
-  // Check localStorage for previous session on component mount
-  useEffect(() => {
-    const storedSessionId = localStorage.getItem('lastSessionId');
-    if (storedSessionId) {
-      setLastSessionId(storedSessionId);
-      setShowSessionNotice(true);
-    }
-  }, []);
+  // We no longer need to check for previous sessions here
+  // as _app.tsx handles automatic redirection
 
   // Handle navigation
   const navigateToAnalysis = useCallback((sessionId: string) => {
@@ -133,11 +126,7 @@ export default function Home() {
     }
   }, []);
 
-  // Handle continue to analysis click
-  const handleContinueToAnalysis = useCallback((sessionId: string) => {
-    console.log(`Handling continue to analysis for session ${sessionId}`);
-    navigateToAnalysis(sessionId);
-  }, [navigateToAnalysis]);
+  // handleContinueToAnalysis removed as it's no longer needed
 
   // Dropzone setup
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -215,20 +204,7 @@ export default function Home() {
           </div>
         </div>
 
-        {showSessionNotice && lastSessionId && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between">
-            <div className="mb-3 sm:mb-0">
-              <p className="text-blue-700 font-medium">Previous upload detected</p>
-              <p className="text-sm text-blue-600">You can continue with your previous analysis</p>
-            </div>
-            <button
-              onClick={() => handleContinueToAnalysis(lastSessionId)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-            >
-              Continue to Analysis
-            </button>
-          </div>
-        )}
+        {/* Previous session notification removed - automatic redirection handled in _app.tsx */}
 
         <div
           {...getRootProps()}
