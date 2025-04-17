@@ -143,13 +143,18 @@ The application will be available at:
 3. **Ask Questions**: Use natural language to ask questions about your data
 4. **Get Insights**: Receive AI-generated insights and explanations
 
-## � Sample Data
+## 📊 Sample Data
 
 To help you get started quickly, we've included several sample CSV files in the `sample_data` directory:
 
+- **iris.csv** - Famous Iris flower dataset
+- **titanic.csv** - Titanic passenger data
+- **IMDB-Movies.csv** - Movie ratings and information
+- **sample_data.csv** - General sample data for testing
+
 Simply download these files and upload them to the application to start exploring the data analysis capabilities.
 
-## �🔍 Example Queries
+## 🔍 Example Queries
 
 - "What's the average age in this dataset?"
 - "Show me the correlation between income and education level"
