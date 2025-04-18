@@ -5,6 +5,9 @@ import { ArrowRight, FileUp, Table, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 
+// Define file size threshold for showing detailed progress (5MB)
+const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB in bytes
+
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -13,6 +16,8 @@ export default function Home() {
   // Add state for tracking upload progress
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState<'preparing' | 'uploading' | 'processing' | 'complete'>('preparing');
+  // Track if the file is large enough to show detailed progress
+  const [isLargeFile, setIsLargeFile] = useState(false);
   const router = useRouter();
 
   // We no longer need to check for previous sessions here
@@ -61,6 +66,11 @@ export default function Home() {
   // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
+
+    // Check if file is large enough to show detailed progress
+    const showDetailedProgress = file.size >= LARGE_FILE_THRESHOLD;
+    setIsLargeFile(showDetailedProgress);
+    console.log(`File size: ${file.size} bytes. Show detailed progress: ${showDetailedProgress}`);
 
     // Immediately show the upload is starting
     setIsUploading(true);
@@ -172,6 +182,7 @@ export default function Home() {
       // Reset upload state on error
       setUploadProgress(0);
       setUploadStage('preparing');
+      setIsLargeFile(false);
       setIsUploading(false);
     }
     // Note: We don't set isUploading to false on success because we want to show the progress
@@ -281,61 +292,68 @@ export default function Home() {
           {/* Status indicators */}
           {isUploading && (
             <div className="mt-6 w-full max-w-md">
-              {/* Simple spinner for immediate feedback */}
-              <div className="flex items-center justify-center text-blue-600 mb-4">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                <span>Uploading your file...</span>
-              </div>
-
-              {/* Progress bar container */}
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-medium text-blue-700">
-                  {uploadStage === 'preparing' && 'Preparing upload...'}
-                  {uploadStage === 'uploading' && `Uploading: ${uploadProgress}%`}
-                  {uploadStage === 'processing' && 'Processing file...'}
-                  {uploadStage === 'complete' && 'Upload complete!'}
+              {/* For small files: Simple spinner */}
+              {!isLargeFile && (
+                <div className="flex items-center justify-center text-blue-600">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                  <span>Uploading your file...</span>
                 </div>
-                <div className="text-xs text-blue-600">{uploadProgress}%</div>
-              </div>
+              )}
 
-              {/* Progress bar */}
-              <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 transition-all duration-300 ease-out"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
-
-              {/* Stage indicator */}
-              <div className="mt-2 flex justify-between text-xs text-gray-500">
-                <div className={`${uploadStage !== 'preparing' ? 'text-blue-600 font-medium' : ''}`}>Preparing</div>
-                <div className={`${uploadStage === 'uploading' || uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Uploading</div>
-                <div className={`${uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Processing</div>
-                <div className={`${uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Complete</div>
-              </div>
-
-              {/* Additional info based on stage */}
-              <div className="mt-3 text-center text-sm">
-                {uploadStage === 'preparing' && (
-                  <div className="flex items-center justify-center text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                    Preparing your file for upload...
+              {/* For large files: Detailed progress bar */}
+              {isLargeFile && (
+                <>
+                  {/* Progress bar container */}
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-sm font-medium text-blue-700">
+                      {uploadStage === 'preparing' && 'Preparing upload...'}
+                      {uploadStage === 'uploading' && `Uploading: ${uploadProgress}%`}
+                      {uploadStage === 'processing' && 'Processing file...'}
+                      {uploadStage === 'complete' && 'Upload complete!'}
+                    </div>
+                    <div className="text-xs text-blue-600">{uploadProgress}%</div>
                   </div>
-                )}
 
-                {uploadStage === 'uploading' && uploadProgress < 100 && (
-                  <div className="text-blue-600">
-                    Uploading your file to the server...
+                  {/* Progress bar */}
+                  <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
                   </div>
-                )}
 
-                {uploadStage === 'processing' && (
-                  <div className="flex items-center justify-center text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                    Processing your data...
+                  {/* Stage indicator */}
+                  <div className="mt-2 flex justify-between text-xs text-gray-500">
+                    <div className={`${uploadStage !== 'preparing' ? 'text-blue-600 font-medium' : ''}`}>Preparing</div>
+                    <div className={`${uploadStage === 'uploading' || uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Uploading</div>
+                    <div className={`${uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Processing</div>
+                    <div className={`${uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Complete</div>
                   </div>
-                )}
-              </div>
+
+                  {/* Additional info based on stage */}
+                  <div className="mt-3 text-center text-sm">
+                    {uploadStage === 'preparing' && (
+                      <div className="flex items-center justify-center text-blue-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                        Preparing your file for upload...
+                      </div>
+                    )}
+
+                    {uploadStage === 'uploading' && uploadProgress < 100 && (
+                      <div className="text-blue-600">
+                        Uploading your file to the server...
+                      </div>
+                    )}
+
+                    {uploadStage === 'processing' && (
+                      <div className="flex items-center justify-center text-blue-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                        Processing your data...
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
