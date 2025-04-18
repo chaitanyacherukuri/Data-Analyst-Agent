@@ -29,7 +29,7 @@ A modern full-stack web application for AI-powered data analysis. Upload CSV fil
 ## 🖥️ Demo
 
 <p align="center">
-  <img src="./assets/Home_Page.png" alt="Data Analysis Agent Demo" width="800" />
+  <img src="./assets/Landing_Page.png" alt="Data Analysis Agent Demo" width="800" />
 </p>
 
 ## 🛠️ Tech Stack
