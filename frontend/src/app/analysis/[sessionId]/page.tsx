@@ -6,6 +6,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Send, ArrowLeft, ChevronRight, Copy, CheckCheck, RefreshCw, Database, PieChart, ListFilter } from "lucide-react";
 
+// Custom component for column lists
+const ColumnList = ({ children }: { children: React.ReactNode }) => {
+  return <div className="column-list">{children}</div>;
+};
+
 // Types
 interface AnalysisQuestion {
   title: string;
@@ -268,11 +273,19 @@ export default function AnalysisPage() {
     td: (props: any) => (
       <td className="px-4 py-3 text-sm text-gray-600 border-b border-gray-50" {...props} />
     ),
-    // Custom code block rendering
+    // Custom inline code rendering for column names
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isSQL = match && match[1].toLowerCase() === 'sql';
       const language = match ? match[1].toLowerCase() : '';
+      const value = String(children).replace(/\n$/, '');
+
+      // Check if it's an inline code that looks like a column name
+      if (inline && /^[\w\d_.-]+$/.test(value)) {
+        return (
+          <span className="column-name">{value}</span>
+        );
+      }
 
       if (!inline && isSQL) {
         // SQL code block with special styling
@@ -322,13 +335,34 @@ export default function AnalysisPage() {
         </pre>
       );
     },
+
     // Custom heading renderers
     h1: (props: any) => <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-gray-200 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600" {...props} />,
     h2: (props: any) => <h2 className="text-xl font-bold mt-6 mb-4 pb-1 border-b border-gray-100 text-blue-700" {...props} />,
     h3: (props: any) => <h3 className="text-lg font-semibold mt-5 mb-3 text-indigo-700" {...props} />,
     h4: (props: any) => <h4 className="text-base font-semibold mt-4 mb-2 text-gray-800" {...props} />,
-    // Custom paragraph
-    p: (props: any) => <p className="my-4 text-gray-700 leading-relaxed" {...props} />,
+    // Custom paragraph with special handling for column lists
+    p: (props: any) => {
+      const content = props.children?.toString() || '';
+
+      // Check if this paragraph contains a list of columns
+      if (content.includes('Columns:')) {
+        // Split the text at 'Columns:' to separate the prefix from the column list
+        const parts = content.split('Columns:');
+        if (parts.length === 2) {
+          return (
+            <p className="my-4 text-gray-700 leading-relaxed">
+              {parts[0]}Columns:
+              <ColumnList>
+                {/* The rest of the content will be processed by the code renderer */}
+              </ColumnList>
+            </p>
+          );
+        }
+      }
+
+      return <p className="my-4 text-gray-700 leading-relaxed" {...props} />;
+    },
     // Custom bullet lists
     ul: (props: any) => <ul className="my-4 ml-6 list-disc space-y-2" {...props} />,
     ol: (props: any) => <ol className="my-4 ml-6 list-decimal space-y-2" {...props} />,
@@ -510,26 +544,7 @@ export default function AnalysisPage() {
                           remarkPlugins={[remarkGfm]}
                           components={MarkdownComponents}
                         >
-                          {/* Process the analysis results to format column names better */}
-                          {analysisResults
-                            // First, handle lists of column names
-                            .replace(/Columns: (`[^`]+`(?:, `[^`]+`)+)/g, (match, columnList) => {
-                              const formattedList = columnList.replace(/`([^`]+)`/g, (m, col) => {
-                                if (/^[\w\d_.-]+$/.test(col)) {
-                                  return `<span class="column-name">${col}</span>`;
-                                }
-                                return m;
-                              });
-                              return `<div class="column-list">${formattedList.replace(/, /g, '')}</div>`;
-                            })
-                            // Then handle individual column names
-                            .replace(/`([^`]+)`/g, (match, columnName) => {
-                              // Check if it looks like a column name (no spaces, special characters limited)
-                              if (/^[\w\d_.-]+$/.test(columnName)) {
-                                return `<span class="column-name">${columnName}</span>`;
-                              }
-                              return match; // Return original if not a column name
-                            })}
+                          {analysisResults}
                         </ReactMarkdown>
                       </div>
                       <div className="mt-6 flex justify-end">
