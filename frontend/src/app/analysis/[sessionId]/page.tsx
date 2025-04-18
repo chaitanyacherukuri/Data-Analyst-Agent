@@ -167,9 +167,6 @@ export default function AnalysisPage() {
         console.warn("Unexpected response format:", data);
         setAnalysisResults(JSON.stringify(data, null, 2));
       }
-
-      // Scroll to results after a short delay to ensure DOM is updated
-      setTimeout(() => scrollToResults(), 200);
     } catch (error) {
       console.error("Analysis error:", error);
       setError("Failed to analyze data. Please try a different question.");
@@ -187,6 +184,11 @@ export default function AnalysisPage() {
   // Handle predefined question click
   const handlePredefinedQuestion = (questionText: string) => {
     setUserQuestion(questionText);
+
+    // Scroll to results section immediately
+    scrollToResults();
+
+    // Then start the analysis
     analyzeData(questionText);
   };
 
@@ -454,9 +456,9 @@ export default function AnalysisPage() {
             </div>
           </div>
 
-          {/* Analysis results */}
-          {(isAnalyzing || analysisResults) && (
-            <div ref={analysisResultsRef} className="modern-card">
+          {/* Analysis results - Always render the container but conditionally show content */}
+          <div ref={analysisResultsRef} className="modern-card">
+            {(isAnalyzing || analysisResults) && (
               <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
                 <div className="flex items-center">
                   <Database className="h-5 w-5 mr-2 text-blue-600" />
@@ -520,8 +522,8 @@ export default function AnalysisPage() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </main>
