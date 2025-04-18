@@ -48,14 +48,27 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         print(f"Request: {request.method} {request.url}")
         print(f"Client IP: {request.client.host if request.client else 'unknown'}")
         print(f"Request headers: {dict(request.headers)}")
-        
+
         # Process the request and get the response
         response = await call_next(request)
-        
+
         # Log response info
         print(f"Response status: {response.status_code}")
         print(f"Response headers: {dict(response.headers)}")
-        
+
+        return response
+
+# Middleware to handle long-running requests
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Set a longer timeout for file upload requests
+        if request.url.path == "/api/upload":
+            print("File upload request detected - using extended timeout")
+            # The actual timeout is handled by the client and uvicorn settings
+            # This middleware just logs the request for monitoring
+
+        # Process the request
+        response = await call_next(request)
         return response
 
 app = FastAPI(
@@ -76,6 +89,9 @@ print("Environment variables:", {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v e
 
 # Add the logging middleware first
 app.add_middleware(LoggingMiddleware)
+
+# Add the timeout middleware
+app.add_middleware(TimeoutMiddleware)
 
 # Configure CORS with more permissive settings
 app.add_middleware(
@@ -133,7 +149,7 @@ class FallbackModel:
                 }
             }]
         }
-    
+
     # Add a synchronous run method to match API expectations
     def run(self, messages, **kwargs):
         return {
@@ -180,61 +196,61 @@ async def upload_file(file: UploadFile = File(...)):
     if not file or not file.filename:
         print("Error: No file uploaded or filename is empty")
         raise HTTPException(status_code=400, detail="No file uploaded")
-        
+
     print(f"Received file upload: {file.filename}")
     print(f"Content type: {file.content_type}")
-    
+
     if not file.filename.endswith('.csv'):
         print(f"Error: File type not supported - {file.filename}")
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
-    
+
     # Generate session ID and save file
     session_id = str(uuid.uuid4())
     file_path = f"temp/{session_id}_{file.filename}"
-    
+
     try:
         # Ensure temp directory exists
         os.makedirs("temp", exist_ok=True)
         print(f"Temp directory exists: {os.path.exists('temp')}")
-        
+
         # Save file content
         print(f"Saving file to {file_path}")
         contents = await file.read()
-        
+
         # Check if file is empty
         if not contents:
             print("Error: File is empty")
             raise HTTPException(status_code=400, detail="The uploaded file is empty")
-            
+
         file_size = len(contents)
         print(f"File size: {file_size} bytes")
-        
+
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
-        
+
         print(f"File saved successfully: {os.path.exists(file_path)}")
-        
+
         # Reset file cursor for potential reuse
         await file.seek(0)
     except Exception as e:
         print(f"Error saving file: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
-    
+
     # Store session information
     sessions[session_id] = SessionData(
         file_path=file_path,
         file_name=file.filename,
         created_at=datetime.now()
     )
-    
+
     # Read file preview
     try:
         print(f"Parsing CSV file: {file_path}")
         # Try to detect the delimiter
         with open(file_path, 'r', encoding='utf-8') as f:
             sample = f.read(4096)  # Read a sample to detect the delimiter
-            
+
         sniffer = csv.Sniffer()
         try:
             dialect = sniffer.sniff(sample)
@@ -244,12 +260,12 @@ async def upload_file(file: UploadFile = File(...)):
             # Fall back to standard CSV reading if delimiter detection fails
             print("Delimiter detection failed, falling back to default comma")
             df = pd.read_csv(file_path)
-            
+
         # Validate that the file has at least one row and one column
         if df.empty or df.shape[1] == 0:
             print("Error: CSV file has no data or no columns")
             raise HTTPException(status_code=400, detail="The CSV file has no data or columns")
-        
+
         # Convert Pandas DataFrame to a serializable format, handling NaN values
         preview = df.head(5).replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict(orient="records")
         columns = list(df.columns)
@@ -266,7 +282,7 @@ async def upload_file(file: UploadFile = File(...)):
         print(f"Error reading CSV: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
-    
+
     response_data = {
         "session_id": session_id,
         "filename": file.filename,
@@ -275,8 +291,8 @@ async def upload_file(file: UploadFile = File(...)):
     }
     print(f"Upload successful. Session ID: {session_id}")
     print(f"Response data size: {len(str(response_data))} chars")
-    
-    # Return response using the custom JSON encoder 
+
+    # Return response using the custom JSON encoder
     return create_json_response(response_data)
 
 def get_agent(file_path: str):
@@ -288,24 +304,24 @@ def get_agent(file_path: str):
             summarize_tables=True,
             export_tables=False
         )
-        
+
         # Load data into DuckDB
         duckdb_tools.load_local_csv_to_table(
             path=file_path,
             table="uploaded_data"
         )
-        
+
         # Try to import and use Groq
         groq_available = False
         model = None
-        
+
         # First try dynamic import of groq
         try:
             # Use importlib for more flexible import handling
             print("Attempting to import groq module...")
             groq_module = importlib.import_module("groq")
             print(f"Groq module imported successfully. Version: {getattr(groq_module, '__version__', 'unknown')}")
-            
+
             # Then try to get the agent's Groq model
             try:
                 print("Attempting to import Groq from agno.models.groq...")
@@ -330,7 +346,7 @@ def get_agent(file_path: str):
                 print("Attempting to install dependencies...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "groq"])
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "agno"])
-                
+
                 # Try again
                 try:
                     agno_groq = importlib.import_module("agno.models.groq")
@@ -348,7 +364,7 @@ def get_agent(file_path: str):
                     print(f"Still failed to initialize Groq after installation: {e2}")
         except Exception as e:
             print(f"Error initializing Groq: {e}")
-        
+
         # If still not available, use fallback
         if not groq_available:
             print("Using fallback model since Groq initialization failed")
@@ -358,7 +374,7 @@ def get_agent(file_path: str):
                 max_tokens=4000,
                 api_key=GROQ_API_KEY
             )
-        
+
         # Create agent with appropriate model
         from agno.agent import Agent
         print("Creating Agent with model type:", type(model).__name__)
@@ -369,7 +385,7 @@ def get_agent(file_path: str):
                 # Initial data examination
                 "Always begin by examining the actual data structure with 'DESCRIBE uploaded_data' or 'SELECT * FROM uploaded_data LIMIT 5'",
                 "List the actual column names from the uploaded_data table before writing any analysis queries",
-                "Always use the actual column names from the uploaded_data table in your queries",  
+                "Always use the actual column names from the uploaded_data table in your queries",
 
                 # Execution instructions
                 "ALWAYS execute your SQL queries using the run_sql_query tool - never just show a query without executing it",
@@ -384,7 +400,7 @@ def get_agent(file_path: str):
                 "Start with simple queries and gradually add complexity only if needed",
                 "If a query fails due to column names, immediately verify columns with 'PRAGMA table_info(uploaded_data)'",
                 "When stuck, simplify the query rather than retrying",
-                    
+
                 # Query Optimization
                 "Use LIMIT clauses in all exploratory queries",
                 "Break complex queries into simpler steps using WITH clauses",
@@ -396,25 +412,25 @@ def get_agent(file_path: str):
                 "If you're uncertain about column names or data types, verify them first with a query",
                 "If you cannot answer a question with the available data, state clearly what's missing rather than making up results",
                 "Do not assume data structures or values that aren't present in the actual uploaded_data table",
-                    
+
                 # Query validation
                 "Test your SQL queries on small subsets of data before running complex analyses",
                 "If a query fails, show the error and try a simpler alternative that works with the actual columns",
-                    
+
                 # Analysis techniques
                 "Use SQL aggregation functions (COUNT, SUM, AVG, MIN, MAX, STDDEV) for statistical analysis",
                 "In order to identify potential outliers in numerical columns use SQL (values > 3 standard deviations from mean or outside 1.5*IQR)",
                 "Create temporary tables when needed with CREATE TABLE or WITH clauses",
                 "For correlations, use SQL window functions or explicit calculations",
                 "Use CASE statements for conditional analysis and data transformation",
-                    
+
                 # Clarity and presentation
                 "Format your responses using markdown for readability",
                 "Use tables to present structured results",
                 "Clearly separate your SQL queries from the execution results and explanations",
                 "Present numeric results with appropriate precision (2-3 decimal places for percentages and statistics)",
                 "Explain insights from the actual SQL results in clear, non-technical language",
-                    
+
                 # Error handling
                 "If the requested analysis cannot be performed on the available data, explain why and suggest alternatives",
                 "If column names don't match what's expected, list the actual available columns",
@@ -423,7 +439,7 @@ def get_agent(file_path: str):
             tools=[duckdb_tools],
             markdown=True
         )
-        
+
         return agent
     except Exception as e:
         print(f"Error initializing agent: {str(e)}")
@@ -431,7 +447,7 @@ def get_agent(file_path: str):
         try:
             # Create a minimal fallback model that doesn't depend on external services
             fallback_model = FallbackModel()
-            
+
             # Create a minimal DuckDB tools instance if possible
             try:
                 from agno.tools.duckdb import DuckDbTools
@@ -440,7 +456,7 @@ def get_agent(file_path: str):
                     summarize_tables=True,
                     export_tables=False
                 )
-                
+
                 # Try to load data if possible
                 try:
                     duckdb_tools.load_local_csv_to_table(
@@ -452,7 +468,7 @@ def get_agent(file_path: str):
             except Exception as tools_error:
                 print(f"Failed to create DuckDB tools in fallback mode: {str(tools_error)}")
                 duckdb_tools = None
-            
+
             # Create a minimal agent with fallback model
             from agno.agent import Agent
             fallback_agent = Agent(
@@ -471,23 +487,23 @@ def get_agent(file_path: str):
 async def analyze_data(request: AnalysisRequest):
     """Analyze data based on user question"""
     session_id = request.session_id
-    
+
     # Check if session exists
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found. Please upload a file first.")
-    
+
     session = sessions[session_id]
-    
+
     try:
         # Get agent (initializes DuckDB and Groq)
         agent = get_agent(session.file_path)
-        
+
         if agent is None:
             return create_json_response(
                 {"error": "Failed to initialize analysis agent. Please try again later."},
                 status_code=500
             )
-        
+
         # Run analysis using the agent
         try:
             # Try async version first (newer versions of agno)
@@ -523,9 +539,9 @@ async def get_session(session_id: str):
     """Get session information including file preview"""
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     session = sessions[session_id]
-    
+
     try:
         df = pd.read_csv(session.file_path)
         # Handle NaN and Infinity values by replacing them with None
@@ -535,14 +551,14 @@ async def get_session(session_id: str):
         print(f"Error reading session CSV: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
-    
+
     response_data = {
         "session_id": session_id,
         "filename": session.file_name,
         "preview": preview,
         "columns": columns
     }
-    
+
     # Return using the custom JSON encoder to handle any remaining non-serializable values
     return create_json_response(response_data)
 
@@ -560,7 +576,7 @@ async def get_predefined_questions():
         "Missing Data Analysis": "Calculate the number of missing values in each column and identify columns with the most missing data.",
         "Data Quality Check": "Check for data quality issues: duplicates, values outside expected ranges, and inconsistent formats.",
     }
-    
+
     return {"questions": ANALYSIS_QUESTIONS}
 
 @app.delete("/api/sessions/{session_id}")
@@ -568,19 +584,19 @@ async def delete_session(session_id: str):
     """Delete a session and its associated file"""
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     session = sessions[session_id]
-    
+
     # Delete file
     try:
         if os.path.exists(session.file_path):
             os.remove(session.file_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
-    
+
     # Remove session
     del sessions[session_id]
-    
+
     return {"message": "Session deleted successfully"}
 
 # Session cleanup (should use a proper task scheduler in production)
@@ -632,7 +648,7 @@ async def system_info():
         # Get installed packages
         import pkg_resources
         installed_packages = sorted([f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set])
-        
+
         # Check specific modules
         module_info = {}
         for module_name in ["groq", "agno", "pandas", "duckdb", "fastapi"]:
@@ -641,7 +657,7 @@ async def system_info():
                 module_info[module_name] = getattr(module, "__version__", "installed (no version)")
             except ImportError:
                 module_info[module_name] = "not installed"
-        
+
         # Check disk space
         import shutil
         disk_usage = shutil.disk_usage("/")
@@ -651,7 +667,7 @@ async def system_info():
             "free_gb": round(disk_usage.free / (1024**3), 2),
             "percent_used": round((disk_usage.used / disk_usage.total) * 100, 2)
         }
-        
+
         # Get memory info if psutil is available
         memory_info = {}
         try:
@@ -665,7 +681,7 @@ async def system_info():
             }
         except ImportError:
             memory_info = {"status": "psutil not installed"}
-        
+
         return {
             "system": {
                 "python_version": sys.version,
@@ -690,4 +706,4 @@ async def system_info():
         return {
             "error": str(e),
             "traceback": traceback.format_exc()
-        } 
+        }

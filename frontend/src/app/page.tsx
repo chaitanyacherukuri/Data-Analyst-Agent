@@ -73,7 +73,8 @@ export default function Home() {
       formData.append("file", file);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      // Increase timeout to 120 seconds (2 minutes) to handle larger files
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
 
       try {
         const response = await fetch(`${apiUrl}/api/upload`, {

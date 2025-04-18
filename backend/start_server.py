@@ -25,14 +25,14 @@ def install_packages():
         "python-dotenv",
         "duckdb"
     ]
-    
+
     for package in base_packages:
         print(f"Installing base package: {package}...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package])
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to install {package}: {e}")
-    
+
     # Then install groq and agno
     print("Installing AI packages...")
     ai_packages = ["groq", "agno"]
@@ -40,7 +40,7 @@ def install_packages():
         try:
             print(f"Installing {package}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package])
-            
+
             # Verify installation
             if package == "groq":
                 try:
@@ -60,7 +60,7 @@ def install_packages():
                 print(f"Installed {package} without dependencies")
             except Exception as e2:
                 print(f"Critical: Failed to install {package} even without dependencies: {e2}")
-    
+
     print("Package installation completed.")
     # Give a moment for packages to be properly registered
     time.sleep(1)
@@ -74,7 +74,7 @@ def start_server():
     except ValueError:
         print(f"Warning: Invalid PORT value '{port_str}', using default 8000")
         port = 8000
-    
+
     # Check if port is available, otherwise find an open one
     if not check_port_available(port):
         print(f"Warning: Port {port} is already in use")
@@ -84,18 +84,20 @@ def start_server():
                 print(f"Using alternative port {test_port}")
                 port = test_port
                 break
-    
+
     print(f"Starting uvicorn server on port: {port}")
-    
+
     try:
         # Start uvicorn with proper settings for Railway
         uvicorn.run(
-            "app:app", 
-            host="0.0.0.0", 
-            port=port, 
+            "app:app",
+            host="0.0.0.0",
+            port=port,
             log_level="info",
             proxy_headers=True,
-            forwarded_allow_ips="*"
+            forwarded_allow_ips="*",
+            timeout_keep_alive=120,  # Increase keep-alive timeout to 2 minutes
+            timeout_graceful_shutdown=30  # Allow 30 seconds for graceful shutdown
         )
     except Exception as e:
         print(f"Error starting server: {e}")
@@ -111,11 +113,11 @@ if __name__ == "__main__":
     try:
         # Install packages first
         install_packages()
-        
+
         # Start the server
         start_server()
     except Exception as e:
         print(f"Unhandled exception: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1) 
+        sys.exit(1)
