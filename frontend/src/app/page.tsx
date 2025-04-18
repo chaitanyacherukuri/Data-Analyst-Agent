@@ -62,11 +62,15 @@ export default function Home() {
   const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
 
+    // Immediately show the upload is starting
     setIsUploading(true);
     setUploadError("");
     setUploadedSessionId(null);
     setUploadProgress(0);
     setUploadStage('preparing');
+
+    // Force a render to show the preparing state
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
       console.log("Uploading file:", file.name, "Size:", file.size, "bytes");
@@ -79,7 +83,7 @@ export default function Home() {
       formData.append("file", file);
 
       // Use XMLHttpRequest instead of fetch to track progress
-      return new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
 
         // Set up a timeout
@@ -95,7 +99,17 @@ export default function Home() {
             console.log(`Upload progress: ${percentComplete}%`);
             setUploadProgress(percentComplete);
             setUploadStage('uploading');
+          } else {
+            console.log('Upload progress event not computable');
+            // Still show uploading state even if we can't compute percentage
+            setUploadStage('uploading');
           }
+        });
+
+        // Add loadstart event to ensure we catch the beginning of the upload
+        xhr.upload.addEventListener('loadstart', () => {
+          console.log('Upload started');
+          setUploadStage('uploading');
         });
 
         // Handle state changes
@@ -155,12 +169,14 @@ export default function Home() {
     } catch (error: any) {
       console.error("Error uploading file:", error);
       setUploadError(`Error uploading file: ${error.message || 'Upload failed'}. Please try again.`);
-    } finally {
-      if (uploadStage !== 'complete') {
-        setIsUploading(false);
-      }
+      // Reset upload state on error
+      setUploadProgress(0);
+      setUploadStage('preparing');
+      setIsUploading(false);
     }
-  }, [uploadStage]);
+    // Note: We don't set isUploading to false on success because we want to show the progress
+    // until navigation happens
+  }, []);
 
   // handleContinueToAnalysis removed as it's no longer needed
 
@@ -265,6 +281,12 @@ export default function Home() {
           {/* Status indicators */}
           {isUploading && (
             <div className="mt-6 w-full max-w-md">
+              {/* Simple spinner for immediate feedback */}
+              <div className="flex items-center justify-center text-blue-600 mb-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                <span>Uploading your file...</span>
+              </div>
+
               {/* Progress bar container */}
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-medium text-blue-700">
