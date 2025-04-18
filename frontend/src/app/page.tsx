@@ -10,6 +10,9 @@ export default function Home() {
   const [uploadError, setUploadError] = useState("");
   // Removed unused state variables for lastSessionId and showSessionNotice
   const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
+  // Add state for tracking upload progress
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<'preparing' | 'uploading' | 'processing' | 'complete'>('preparing');
   const router = useRouter();
 
   // We no longer need to check for previous sessions here
@@ -62,6 +65,8 @@ export default function Home() {
     setIsUploading(true);
     setUploadError("");
     setUploadedSessionId(null);
+    setUploadProgress(0);
+    setUploadStage('preparing');
 
     try {
       console.log("Uploading file:", file.name, "Size:", file.size, "bytes");
@@ -69,63 +74,93 @@ export default function Home() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://data-analyst-agent-production.up.railway.app';
       console.log("API URL:", apiUrl);
 
+      // Create FormData
       const formData = new FormData();
       formData.append("file", file);
 
-      const controller = new AbortController();
-      // Increase timeout to 120 seconds (2 minutes) to handle larger files
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      // Use XMLHttpRequest instead of fetch to track progress
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
 
-      try {
-        const response = await fetch(`${apiUrl}/api/upload`, {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-          headers: {
-            'Accept': 'application/json',
-          },
+        // Set up a timeout
+        const timeoutId = setTimeout(() => {
+          xhr.abort();
+          reject(new Error('Request timed out. Please try again later.'));
+        }, 120000); // 2 minutes timeout
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            console.log(`Upload progress: ${percentComplete}%`);
+            setUploadProgress(percentComplete);
+            setUploadStage('uploading');
+          }
         });
 
-        clearTimeout(timeoutId);
+        // Handle state changes
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4) { // Request completed
+            clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          let errorMessage = "";
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.detail || `Server error: ${response.status} ${response.statusText}`;
-          } catch (jsonError) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            errorMessage = errorText || `Server error: ${response.status} ${response.statusText}`;
+            if (xhr.status >= 200 && xhr.status < 300) {
+              // Success
+              try {
+                setUploadStage('processing');
+                const data = JSON.parse(xhr.responseText);
+                console.log("Upload successful, received data:", data);
+
+                if (!data.session_id) {
+                  reject(new Error("Server response missing session ID. Please try again."));
+                  return;
+                }
+
+                // Set progress to 100% when complete
+                setUploadProgress(100);
+                setUploadStage('complete');
+
+                // Store session ID and trigger navigation
+                localStorage.setItem('lastSessionId', data.session_id);
+                setUploadedSessionId(data.session_id);
+                resolve(data);
+              } catch (parseError) {
+                reject(new Error(`Error parsing server response: ${parseError.message}`));
+              }
+            } else {
+              // Error
+              let errorMessage = "";
+              try {
+                const errorData = JSON.parse(xhr.responseText);
+                errorMessage = errorData.detail || `Server error: ${xhr.status}`;
+              } catch (jsonError) {
+                errorMessage = xhr.responseText || `Server error: ${xhr.status}`;
+              }
+              reject(new Error(`Upload failed: ${errorMessage}`));
+            }
           }
-          throw new Error(`Upload failed: ${errorMessage}`);
-        }
+        };
 
-        const data = await response.json();
-        console.log("Upload successful, received data:", data);
+        // Handle network errors
+        xhr.onerror = function() {
+          clearTimeout(timeoutId);
+          reject(new Error('Network error occurred. Please check your connection and try again.'));
+        };
 
-        if (!data.session_id) {
-          throw new Error("Server response missing session ID. Please try again.");
-        }
-
-        // Store session ID and trigger navigation
-        localStorage.setItem('lastSessionId', data.session_id);
-        setUploadedSessionId(data.session_id);
-
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. Please try again later.');
-        }
-        throw fetchError;
-      }
+        // Open and send the request
+        xhr.open('POST', `${apiUrl}/api/upload`, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.send(formData);
+      });
 
     } catch (error: any) {
       console.error("Error uploading file:", error);
       setUploadError(`Error uploading file: ${error.message || 'Upload failed'}. Please try again.`);
     } finally {
-      setIsUploading(false);
+      if (uploadStage !== 'complete') {
+        setIsUploading(false);
+      }
     }
-  }, []);
+  }, [uploadStage]);
 
   // handleContinueToAnalysis removed as it's no longer needed
 
@@ -229,9 +264,56 @@ export default function Home() {
 
           {/* Status indicators */}
           {isUploading && (
-            <div className="mt-6 flex items-center text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-              Uploading your file...
+            <div className="mt-6 w-full max-w-md">
+              {/* Progress bar container */}
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-sm font-medium text-blue-700">
+                  {uploadStage === 'preparing' && 'Preparing upload...'}
+                  {uploadStage === 'uploading' && `Uploading: ${uploadProgress}%`}
+                  {uploadStage === 'processing' && 'Processing file...'}
+                  {uploadStage === 'complete' && 'Upload complete!'}
+                </div>
+                <div className="text-xs text-blue-600">{uploadProgress}%</div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+
+              {/* Stage indicator */}
+              <div className="mt-2 flex justify-between text-xs text-gray-500">
+                <div className={`${uploadStage !== 'preparing' ? 'text-blue-600 font-medium' : ''}`}>Preparing</div>
+                <div className={`${uploadStage === 'uploading' || uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Uploading</div>
+                <div className={`${uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Processing</div>
+                <div className={`${uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Complete</div>
+              </div>
+
+              {/* Additional info based on stage */}
+              <div className="mt-3 text-center text-sm">
+                {uploadStage === 'preparing' && (
+                  <div className="flex items-center justify-center text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                    Preparing your file for upload...
+                  </div>
+                )}
+
+                {uploadStage === 'uploading' && uploadProgress < 100 && (
+                  <div className="text-blue-600">
+                    Uploading your file to the server...
+                  </div>
+                )}
+
+                {uploadStage === 'processing' && (
+                  <div className="flex items-center justify-center text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                    Processing your data...
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
