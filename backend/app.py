@@ -121,6 +121,49 @@ os.makedirs("temp", exist_ok=True)
 # Session store (in production, use Redis or a database)
 sessions = {}
 
+# Session persistence file
+SESSION_FILE = "temp/sessions.json"
+
+# Load sessions from file if it exists
+def load_sessions():
+    global sessions
+    try:
+        if os.path.exists(SESSION_FILE):
+            with open(SESSION_FILE, 'r') as f:
+                session_data = json.load(f)
+                # Convert the loaded data back to SessionData objects
+                for session_id, data in session_data.items():
+                    sessions[session_id] = SessionData(
+                        file_path=data['file_path'],
+                        file_name=data['file_name'],
+                        created_at=datetime.fromisoformat(data['created_at']),
+                        last_accessed=datetime.fromisoformat(data['last_accessed']) if data.get('last_accessed') else None
+                    )
+            print(f"Loaded {len(sessions)} sessions from {SESSION_FILE}")
+    except Exception as e:
+        print(f"Error loading sessions from file: {str(e)}")
+        # If there's an error loading, start with an empty sessions dict
+        sessions = {}
+
+# Save sessions to file
+def save_sessions():
+    try:
+        # Convert SessionData objects to dictionaries
+        session_data = {}
+        for session_id, session in sessions.items():
+            session_data[session_id] = {
+                'file_path': session.file_path,
+                'file_name': session.file_name,
+                'created_at': session.created_at.isoformat(),
+                'last_accessed': session.last_accessed.isoformat() if session.last_accessed else None
+            }
+
+        with open(SESSION_FILE, 'w') as f:
+            json.dump(session_data, f)
+        print(f"Saved {len(sessions)} sessions to {SESSION_FILE}")
+    except Exception as e:
+        print(f"Error saving sessions to file: {str(e)}")
+
 # File management utilities
 def get_file_age_hours(file_path):
     """Get the age of a file in hours"""
@@ -199,6 +242,14 @@ async def cleanup_files():
             del sessions[session_id]
             sessions_expired += 1
             print(f"Expired session: {session_id}")
+
+        # Save sessions to file after removing expired sessions
+        if expired_sessions:
+            try:
+                save_sessions()
+                print(f"Saved sessions after expiring {len(expired_sessions)} sessions")
+            except Exception as e:
+                print(f"Error saving sessions after expiration: {str(e)}")
 
         # If we're still over the size limit, remove oldest files until under limit
         if get_temp_dir_size_mb() > MAX_TEMP_DIR_SIZE_MB:
@@ -380,6 +431,12 @@ async def upload_file(file: UploadFile = File(...)):
         created_at=datetime.now()
     )
 
+    # Save sessions to file
+    try:
+        save_sessions()
+    except Exception as e:
+        print(f"Error saving sessions after upload: {str(e)}")
+
     # Read file preview
     try:
         print(f"Parsing CSV file: {file_path}")
@@ -467,7 +524,7 @@ def get_agent(file_path: str):
                     model = Groq(
                         id="meta-llama/llama-4-scout-17b-16e-instruct",
                         temperature=0.1,
-                        max_tokens=4000,
+                        max_tokens=3000,  # Reduced to avoid token limit errors
                         api_key=GROQ_API_KEY
                     )
                     groq_available = True
@@ -491,7 +548,7 @@ def get_agent(file_path: str):
                         model = Groq(
                             id="meta-llama/llama-4-scout-17b-16e-instruct",
                             temperature=0.1,
-                            max_tokens=4000,
+                            max_tokens=3000,  # Reduced to avoid token limit errors
                             api_key=GROQ_API_KEY
                         )
                         groq_available = True
@@ -632,6 +689,12 @@ async def analyze_data(request: AnalysisRequest):
     session = sessions[session_id].touch()
     sessions[session_id] = session  # Update the session in the dictionary
 
+    # Save sessions to file after updating timestamp
+    try:
+        save_sessions()
+    except Exception as e:
+        print(f"Error saving sessions after updating timestamp in analyze: {str(e)}")
+
     try:
         # Get agent (initializes DuckDB and Groq)
         agent = get_agent(session.file_path)
@@ -745,6 +808,12 @@ async def get_session(session_id: str):
     session = sessions[session_id].touch()
     sessions[session_id] = session  # Update the session in the dictionary
 
+    # Save sessions to file after updating timestamp
+    try:
+        save_sessions()
+    except Exception as e:
+        print(f"Error saving sessions after updating timestamp in get_session: {str(e)}")
+
     try:
         df = pd.read_csv(session.file_path)
         # Handle NaN and Infinity values by replacing them with None
@@ -800,6 +869,12 @@ async def delete_session(session_id: str):
     # Remove session
     del sessions[session_id]
 
+    # Save sessions to file after deletion
+    try:
+        save_sessions()
+    except Exception as e:
+        print(f"Error saving sessions after deletion: {str(e)}")
+
     return {"message": "Session deleted successfully"}
 
 # Background task for periodic cleanup
@@ -808,6 +883,14 @@ async def periodic_cleanup():
     while True:
         try:
             await cleanup_files()
+
+            # Save sessions after cleanup
+            try:
+                save_sessions()
+                print("Saved sessions after periodic cleanup")
+            except Exception as e:
+                print(f"Error saving sessions after periodic cleanup: {str(e)}")
+
             # Sleep for the configured interval
             await asyncio.sleep(CLEANUP_INTERVAL_MINUTES * 60)
         except asyncio.CancelledError:
@@ -827,6 +910,14 @@ async def startup_event():
     Startup event handler - runs when the application starts
     This initializes the application, cleans up old temporary files, and starts background tasks
     """
+    # Load sessions from file
+    try:
+        print("Loading sessions from file")
+        load_sessions()
+    except Exception as e:
+        print(f"Error loading sessions: {str(e)}")
+        traceback.print_exc()
+
     # Run initial cleanup
     try:
         print("Running initial cleanup on startup")
@@ -846,8 +937,16 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    # Save sessions to file
+    try:
+        print("Saving sessions to file before shutdown")
+        save_sessions()
+    except Exception as e:
+        print(f"Error saving sessions: {str(e)}")
+        traceback.print_exc()
+
     # Clean temporary files
-    for session_id, session in sessions.items():
+    for _, session in sessions.items():  # Use _ for unused variable
         if os.path.exists(session.file_path):
             try:
                 os.remove(session.file_path)

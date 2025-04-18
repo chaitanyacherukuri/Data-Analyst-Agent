@@ -159,7 +159,10 @@ export default function AnalysisPage() {
         console.error(`Analysis failed: ${response.status} ${response.statusText}`, errorText);
 
         // Handle specific error cases
-        if (response.status === 429) {
+        if (response.status === 404) {
+          // Session not found - likely due to server restart
+          throw new Error("Session not found. The server may have restarted. Please return to the upload page and try again.");
+        } else if (response.status === 429) {
           throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
         } else if (response.status === 502 || response.status === 504) {
           throw new Error("The server took too long to respond. This might happen with large files or complex questions.");
@@ -171,6 +174,8 @@ export default function AnalysisPage() {
               throw new Error("The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset.");
             } else if (errorData.error && errorData.error.includes("rate limit")) {
               throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+            } else if (errorData.error && (errorData.error.includes("tool call") || errorData.error.includes("function call"))) {
+              throw new Error("The AI model encountered an error processing your request. Please try a different question.");
             } else {
               throw new Error(`Analysis failed: ${errorData.error || 'Server error'}`);
             }
@@ -216,6 +221,8 @@ export default function AnalysisPage() {
           errorMessage = "The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset.";
         } else if (error.message.includes("rate limit")) {
           errorMessage = "Rate limit exceeded. Please wait a moment before trying again.";
+        } else if (error.message.includes("Session not found")) {
+          errorMessage = "Session not found. The server may have restarted. Please return to the upload page and try again.";
         } else {
           errorMessage = error.message;
         }
@@ -600,26 +607,37 @@ export default function AnalysisPage() {
                       <h3 className="text-xl font-semibold text-gray-800 mb-2">Analysis Error</h3>
                       <p className="text-red-600 mb-6 p-3 bg-red-50 rounded-lg max-w-2xl mx-auto">{analysisError}</p>
                       <div className="flex justify-center space-x-4">
-                        <button
-                          onClick={() => {
-                            // Try the same question again
-                            setRetryCount(prev => prev + 1);
-                            analyzeData(userQuestion);
-                          }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          Try Again
-                        </button>
-                        <button
-                          onClick={() => {
-                            // Clear the error and let user try a different question
-                            setAnalysisError("");
-                            setUserQuestion("");
-                          }}
-                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                        >
-                          Try a Different Question
-                        </button>
+                        {analysisError.includes("Session not found") ? (
+                          <button
+                            onClick={handleBackClick}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Return to Upload Page
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                // Try the same question again
+                                setRetryCount(prev => prev + 1);
+                                analyzeData(userQuestion);
+                              }}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Try Again
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Clear the error and let user try a different question
+                                setAnalysisError("");
+                                setUserQuestion("");
+                              }}
+                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                              Try a Different Question
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
