@@ -10,13 +10,15 @@ import os
 import uuid
 import shutil
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import csv
 import importlib
 import sys
 import traceback
 import numpy as np
+import asyncio
+import time
 from fastapi import Request
 
 # Import with try/except to handle potential import errors
@@ -40,6 +42,15 @@ if not GROQ_API_KEY:
 # Get PORT from environment or use default
 PORT = os.getenv("PORT", "8000")
 print(f"PORT environment variable is set to: {PORT}")
+
+# File management configuration
+FILE_MAX_AGE_HOURS = int(os.getenv("FILE_MAX_AGE_HOURS", "24"))  # Files older than this will be deleted
+SESSION_EXPIRY_HOURS = int(os.getenv("SESSION_EXPIRY_HOURS", "48"))  # Sessions older than this will expire
+CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "60"))  # Run cleanup every X minutes
+MAX_TEMP_DIR_SIZE_MB = int(os.getenv("MAX_TEMP_DIR_SIZE_MB", "1000"))  # Maximum size of temp directory in MB
+
+# Track server start time for uptime calculations
+SERVER_START_TIME = time.time()
 
 # Custom middleware to log all requests and responses
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -110,6 +121,120 @@ os.makedirs("temp", exist_ok=True)
 # Session store (in production, use Redis or a database)
 sessions = {}
 
+# File management utilities
+def get_file_age_hours(file_path):
+    """Get the age of a file in hours"""
+    if not os.path.exists(file_path):
+        return float('inf')  # Non-existent files are considered infinitely old
+    mtime = os.path.getmtime(file_path)
+    age_seconds = time.time() - mtime
+    return age_seconds / 3600  # Convert to hours
+
+def get_session_age_hours(session):
+    """Get the age of a session in hours based on last_accessed time"""
+    if not session.last_accessed:
+        return float('inf')  # Sessions without last_accessed are considered infinitely old
+    age_seconds = (datetime.now() - session.last_accessed).total_seconds()
+    return age_seconds / 3600  # Convert to hours
+
+def get_temp_dir_size_mb():
+    """Get the size of the temp directory in MB"""
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk("temp"):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if os.path.exists(fp):
+                total_size += os.path.getsize(fp)
+    return total_size / (1024 * 1024)  # Convert to MB
+
+async def cleanup_files():
+    """Clean up old files and expired sessions"""
+    try:
+        print(f"Starting scheduled cleanup at {datetime.now().isoformat()}")
+
+        # Track stats for logging
+        files_removed = 0
+        sessions_expired = 0
+
+        # Check if temp directory exists
+        if not os.path.exists("temp"):
+            print("Temp directory does not exist, creating it")
+            os.makedirs("temp", exist_ok=True)
+            return
+
+        # Get current temp directory size
+        dir_size_mb = get_temp_dir_size_mb()
+        print(f"Current temp directory size: {dir_size_mb:.2f} MB")
+
+        # First, clean up orphaned files (files without a session)
+        session_files = {session.file_path for session in sessions.values()}
+        for file_name in os.listdir("temp"):
+            file_path = os.path.join("temp", file_name)
+            if os.path.isfile(file_path) and file_path not in session_files:
+                file_age_hours = get_file_age_hours(file_path)
+                if file_age_hours > FILE_MAX_AGE_HOURS:
+                    try:
+                        os.remove(file_path)
+                        files_removed += 1
+                        print(f"Removed orphaned file: {file_path} (age: {file_age_hours:.2f} hours)")
+                    except Exception as e:
+                        print(f"Error removing orphaned file {file_path}: {str(e)}")
+
+        # Next, clean up expired sessions and their files
+        expired_sessions = []
+        for session_id, session in sessions.items():
+            session_age_hours = get_session_age_hours(session)
+            if session_age_hours > SESSION_EXPIRY_HOURS:
+                expired_sessions.append(session_id)
+                if os.path.exists(session.file_path):
+                    try:
+                        os.remove(session.file_path)
+                        files_removed += 1
+                        print(f"Removed file for expired session: {session.file_path} (age: {session_age_hours:.2f} hours)")
+                    except Exception as e:
+                        print(f"Error removing file for expired session {session_id}: {str(e)}")
+
+        # Remove expired sessions from the sessions dictionary
+        for session_id in expired_sessions:
+            del sessions[session_id]
+            sessions_expired += 1
+            print(f"Expired session: {session_id}")
+
+        # If we're still over the size limit, remove oldest files until under limit
+        if get_temp_dir_size_mb() > MAX_TEMP_DIR_SIZE_MB:
+            print(f"Temp directory size exceeds limit, removing oldest files")
+            # Get all files with their ages
+            temp_files = []
+            for file_name in os.listdir("temp"):
+                file_path = os.path.join("temp", file_name)
+                if os.path.isfile(file_path):
+                    temp_files.append((file_path, get_file_age_hours(file_path)))
+
+            # Sort by age (oldest first)
+            temp_files.sort(key=lambda x: x[1], reverse=True)
+
+            # Remove oldest files until under limit
+            for file_path, age_hours in temp_files:
+                if get_temp_dir_size_mb() <= MAX_TEMP_DIR_SIZE_MB:
+                    break
+
+                # Skip files that are associated with active sessions
+                if file_path in session_files:
+                    continue
+
+                try:
+                    os.remove(file_path)
+                    files_removed += 1
+                    print(f"Removed old file to reduce directory size: {file_path} (age: {age_hours:.2f} hours)")
+                except Exception as e:
+                    print(f"Error removing old file {file_path}: {str(e)}")
+
+        print(f"Cleanup completed: {files_removed} files removed, {sessions_expired} sessions expired")
+        print(f"New temp directory size: {get_temp_dir_size_mb():.2f} MB")
+    except Exception as e:
+        print(f"Error during scheduled cleanup: {str(e)}")
+        traceback.print_exc()
+
 # Custom JSON encoder to handle NaN and Infinity values
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -164,6 +289,17 @@ class SessionData(BaseModel):
     file_path: str
     file_name: str
     created_at: datetime
+    last_accessed: datetime = None
+
+    def __init__(self, **data):
+        if 'last_accessed' not in data:
+            data['last_accessed'] = data.get('created_at', datetime.now())
+        super().__init__(**data)
+
+    def touch(self):
+        """Update the last_accessed timestamp"""
+        self.last_accessed = datetime.now()
+        return self
 
 # Add a root endpoint for health checks
 @app.get("/", response_class=PlainTextResponse)
@@ -492,7 +628,9 @@ async def analyze_data(request: AnalysisRequest):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found. Please upload a file first.")
 
-    session = sessions[session_id]
+    # Update last_accessed timestamp
+    session = sessions[session_id].touch()
+    sessions[session_id] = session  # Update the session in the dictionary
 
     try:
         # Get agent (initializes DuckDB and Groq)
@@ -540,7 +678,9 @@ async def get_session(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = sessions[session_id]
+    # Update last_accessed timestamp
+    session = sessions[session_id].touch()
+    sessions[session_id] = session  # Update the session in the dictionary
 
     try:
         df = pd.read_csv(session.file_path)
@@ -599,25 +739,47 @@ async def delete_session(session_id: str):
 
     return {"message": "Session deleted successfully"}
 
-# Session cleanup (should use a proper task scheduler in production)
+# Background task for periodic cleanup
+async def periodic_cleanup():
+    """Run cleanup at regular intervals"""
+    while True:
+        try:
+            await cleanup_files()
+            # Sleep for the configured interval
+            await asyncio.sleep(CLEANUP_INTERVAL_MINUTES * 60)
+        except asyncio.CancelledError:
+            # Handle task cancellation gracefully
+            print("Cleanup task cancelled")
+            break
+        except Exception as e:
+            print(f"Error in periodic cleanup: {str(e)}")
+            traceback.print_exc()
+            # Sleep for a shorter time before retrying after an error
+            await asyncio.sleep(60)  # 1 minute
+
+# Session cleanup and background task initialization
 @app.on_event("startup")
 async def startup_event():
     """
     Startup event handler - runs when the application starts
-    This initializes the application and cleans up old temporary files
+    This initializes the application, cleans up old temporary files, and starts background tasks
     """
-    # Clean old files
+    # Run initial cleanup
     try:
-        if os.path.exists("temp"):
-            for file in os.listdir("temp"):
-                file_path = os.path.join("temp", file)
-                if os.path.isfile(file_path):
-                    # Remove files older than 24 hours
-                    if (datetime.now().timestamp() - os.path.getmtime(file_path)) > 86400:
-                        os.remove(file_path)
-                        print(f"Cleaned up old file: {file_path}")
+        print("Running initial cleanup on startup")
+        await cleanup_files()
     except Exception as e:
-        print(f"Error cleaning up old files: {str(e)}")
+        print(f"Error during initial cleanup: {str(e)}")
+        traceback.print_exc()
+
+    # Start background cleanup task
+    try:
+        # Create a background task for periodic cleanup
+        asyncio.create_task(periodic_cleanup())
+        print(f"Started background cleanup task (interval: {CLEANUP_INTERVAL_MINUTES} minutes)")
+    except Exception as e:
+        print(f"Error starting background cleanup task: {str(e)}")
+        traceback.print_exc()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -698,7 +860,15 @@ async def system_info():
             },
             "temp_directory": {
                 "exists": os.path.exists("temp"),
-                "file_count": len(os.listdir("temp")) if os.path.exists("temp") else 0
+                "file_count": len(os.listdir("temp")) if os.path.exists("temp") else 0,
+                "size_mb": round(get_temp_dir_size_mb(), 2),
+                "max_size_mb": MAX_TEMP_DIR_SIZE_MB
+            },
+            "file_management": {
+                "file_max_age_hours": FILE_MAX_AGE_HOURS,
+                "session_expiry_hours": SESSION_EXPIRY_HOURS,
+                "cleanup_interval_minutes": CLEANUP_INTERVAL_MINUTES,
+                "uptime_hours": round((time.time() - SERVER_START_TIME) / 3600, 2)
             },
             "packages": installed_packages[:20]  # Limit to first 20 for brevity
         }
