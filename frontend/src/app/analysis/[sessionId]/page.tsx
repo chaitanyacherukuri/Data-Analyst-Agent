@@ -510,7 +510,26 @@ export default function AnalysisPage() {
                           remarkPlugins={[remarkGfm]}
                           components={MarkdownComponents}
                         >
-                          {analysisResults}
+                          {/* Process the analysis results to format column names better */}
+                          {analysisResults
+                            // First, handle lists of column names
+                            .replace(/Columns: (`[^`]+`(?:, `[^`]+`)+)/g, (match, columnList) => {
+                              const formattedList = columnList.replace(/`([^`]+)`/g, (m, col) => {
+                                if (/^[\w\d_.-]+$/.test(col)) {
+                                  return `<span class="column-name">${col}</span>`;
+                                }
+                                return m;
+                              });
+                              return `<div class="column-list">${formattedList.replace(/, /g, '')}</div>`;
+                            })
+                            // Then handle individual column names
+                            .replace(/`([^`]+)`/g, (match, columnName) => {
+                              // Check if it looks like a column name (no spaces, special characters limited)
+                              if (/^[\w\d_.-]+$/.test(columnName)) {
+                                return `<span class="column-name">${columnName}</span>`;
+                              }
+                              return match; // Return original if not a column name
+                            })}
                         </ReactMarkdown>
                       </div>
                       <div className="mt-6 flex justify-end">
