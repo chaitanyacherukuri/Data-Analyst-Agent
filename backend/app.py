@@ -45,9 +45,9 @@ print(f"PORT environment variable is set to: {PORT}")
 
 # File management configuration
 FILE_MAX_AGE_HOURS = int(os.getenv("FILE_MAX_AGE_HOURS", "24"))  # Files older than this will be deleted
-SESSION_EXPIRY_HOURS = int(os.getenv("SESSION_EXPIRY_HOURS", "48"))  # Sessions older than this will expire
+SESSION_EXPIRY_HOURS = int(os.getenv("SESSION_EXPIRY_HOURS", "24"))  # Sessions older than this will expire
 CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "60"))  # Run cleanup every X minutes
-MAX_TEMP_DIR_SIZE_MB = int(os.getenv("MAX_TEMP_DIR_SIZE_MB", "1000"))  # Maximum size of temp directory in MB
+MAX_TEMP_DIR_SIZE_MB = int(os.getenv("MAX_TEMP_DIR_SIZE_MB", "500"))  # Maximum size of temp directory in MB
 
 # Track server start time for uptime calculations
 SERVER_START_TIME = time.time()
