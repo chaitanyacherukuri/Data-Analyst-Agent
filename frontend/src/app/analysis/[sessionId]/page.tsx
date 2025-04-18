@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,6 +24,9 @@ export default function AnalysisPage() {
 
   // Get sessionId from path params
   const sessionId = params.sessionId as string;
+
+  // Ref for analysis results section
+  const analysisResultsRef = useRef<HTMLDivElement>(null);
 
   // States
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +110,19 @@ export default function AnalysisPage() {
     }
   }, [router]);
 
+  // Smooth scroll function
+  const scrollToResults = useCallback(() => {
+    if (analysisResultsRef.current) {
+      // Wait a bit for the DOM to update
+      setTimeout(() => {
+        analysisResultsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
+    }
+  }, []);
+
   // Analyze data function
   const analyzeData = useCallback(async (question: string) => {
     if (!question || !sessionId) return;
@@ -151,13 +167,16 @@ export default function AnalysisPage() {
         console.warn("Unexpected response format:", data);
         setAnalysisResults(JSON.stringify(data, null, 2));
       }
+
+      // Scroll to results after a short delay to ensure DOM is updated
+      setTimeout(() => scrollToResults(), 200);
     } catch (error) {
       console.error("Analysis error:", error);
       setError("Failed to analyze data. Please try a different question.");
     } finally {
       setIsAnalyzing(false);
     }
-  }, [sessionId]);
+  }, [sessionId, scrollToResults]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -437,7 +456,7 @@ export default function AnalysisPage() {
 
           {/* Analysis results */}
           {(isAnalyzing || analysisResults) && (
-            <div className="modern-card">
+            <div ref={analysisResultsRef} className="modern-card">
               <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
                 <div className="flex items-center">
                   <Database className="h-5 w-5 mr-2 text-blue-600" />
