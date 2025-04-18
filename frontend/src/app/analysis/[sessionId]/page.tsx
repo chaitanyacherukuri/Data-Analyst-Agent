@@ -459,69 +459,71 @@ export default function AnalysisPage() {
           {/* Analysis results - Always render the container but conditionally show content */}
           <div ref={analysisResultsRef} className="modern-card">
             {(isAnalyzing || analysisResults) && (
-              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
-                <div className="flex items-center">
-                  <Database className="h-5 w-5 mr-2 text-blue-600" />
-                  <h2 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analysis Results</h2>
-                </div>
-                {analysisResults && !isAnalyzing && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => analyzeData(userQuestion)}
-                      className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
-                      title="Refresh analysis"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={copyToClipboard}
-                      className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
-                      title="Copy results"
-                    >
-                      {copiedToClipboard ? <CheckCheck className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                    </button>
+              <>
+                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Database className="h-5 w-5 mr-2 text-blue-600" />
+                    <h2 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analysis Results</h2>
                   </div>
-                )}
-              </div>
-
-              <div className="p-5">
-                {isAnalyzing && (
-                  <div className="py-12 text-center">
-                    <div className="relative mx-auto w-16 h-16">
-                      <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-blue-200 opacity-20"></div>
-                      <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-                      <div className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-t-purple-600 border-r-transparent border-b-transparent border-l-transparent animate-spin-slow"></div>
-                    </div>
-                    <p className="mt-6 text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analyzing your data...</p>
-                    <p className="mt-2 text-gray-500">Our AI is processing your question</p>
-                  </div>
-                )}
-
-                {analysisResults && !isAnalyzing && (
-                  <div className="prose max-w-none">
-                    <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 rounded-xl mb-6 border border-blue-100/50">
-                      <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">Analysis Summary</h3>
-                      <p className="text-gray-700 italic">The AI has analyzed your data and provided the following insights:</p>
-                    </div>
-                    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={MarkdownComponents}
+                  {analysisResults && !isAnalyzing && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => analyzeData(userQuestion)}
+                        className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
+                        title="Refresh analysis"
                       >
-                        {analysisResults}
-                      </ReactMarkdown>
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={copyToClipboard}
+                        className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-all duration-200 flex items-center"
+                        title="Copy results"
+                      >
+                        {copiedToClipboard ? <CheckCheck className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </button>
                     </div>
-                    <div className="mt-6 flex justify-end">
-                      <div className="text-xs text-gray-500 flex items-center">
-                        <svg className="h-4 w-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Powered by AI analysis
+                  )}
+                </div>
+
+                <div className="p-5">
+                  {isAnalyzing && (
+                    <div className="py-12 text-center">
+                      <div className="relative mx-auto w-16 h-16">
+                        <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-blue-200 opacity-20"></div>
+                        <div className="absolute top-0 left-0 w-full h-full rounded-full border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+                        <div className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-t-purple-600 border-r-transparent border-b-transparent border-l-transparent animate-spin-slow"></div>
+                      </div>
+                      <p className="mt-6 text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Analyzing your data...</p>
+                      <p className="mt-2 text-gray-500">Our AI is processing your question</p>
+                    </div>
+                  )}
+
+                  {analysisResults && !isAnalyzing && (
+                    <div className="prose max-w-none">
+                      <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 rounded-xl mb-6 border border-blue-100/50">
+                        <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">Analysis Summary</h3>
+                        <p className="text-gray-700 italic">The AI has analyzed your data and provided the following insights:</p>
+                      </div>
+                      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={MarkdownComponents}
+                        >
+                          {analysisResults}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="mt-6 flex justify-end">
+                        <div className="text-xs text-gray-500 flex items-center">
+                          <svg className="h-4 w-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Powered by AI analysis
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
