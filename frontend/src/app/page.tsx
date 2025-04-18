@@ -216,40 +216,33 @@ export default function Home() {
   });
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-10 bg-gradient-to-b from-slate-50 to-blue-50">
-      <div className="max-w-4xl w-full space-y-8"> {/* Reduced space-y from 10 to 8 */}
+    <main className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-gradient-to-b from-slate-50 to-blue-50">
+      <div className="max-w-4xl w-full space-y-6"> {/* Further reduced space-y from 8 to 6 */}
         {/* Header with gradient text - made more compact */}
-        <div className="text-center space-y-4"> {/* Reduced space-y from 6 to 4 */}
+        <div className="text-center space-y-3 mt-6"> {/* Further reduced space-y from 4 to 3 */}
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 leading-tight pb-1 drop-shadow-sm">
             Data Analysis Agent
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-md text-gray-600 max-w-2xl mx-auto"> {/* Reduced text size */}
             Upload your CSV file and get AI-powered insights from your data in seconds
           </p>
         </div>
 
         {/* File upload section - Moved above feature cards */}
-        <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-sm p-4 mb-6">
-          <div className="mb-3">
-            <h2 className="text-xl font-semibold text-blue-700 flex items-center">
-              <FileUp className="h-5 w-5 mr-2" />
-              Upload Your Data
-            </h2>
-            <p className="text-gray-600 text-sm">CSV files only. No file size limit.</p>
-          </div>
+        <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-sm p-4 mb-4">
 
           {/* Modern file upload area */}
           <div
             {...getRootProps()}
-            className={`p-8 border-2 border-dashed rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all duration-300 ${
+            className={`p-6 border-2 border-dashed rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all duration-300 ${
               isDragActive
                 ? "border-blue-500 bg-blue-50 shadow-md scale-[1.01]"
                 : "border-blue-300 hover:border-blue-400 bg-blue-50/30 hover:bg-blue-50/50 hover:shadow-sm"
             }`}
           >
             <input {...getInputProps()} />
-            <div className={`mb-4 p-5 rounded-full ${isDragActive ? 'bg-blue-100' : 'bg-blue-50'} transition-all duration-300`}>
-              <FileUp className={`h-14 w-14 ${isDragActive ? 'text-blue-600' : 'text-blue-500'} transition-colors duration-300`} />
+            <div className={`mb-3 p-4 rounded-full ${isDragActive ? 'bg-blue-100' : 'bg-blue-50'} transition-all duration-300`}>
+              <FileUp className={`h-12 w-12 ${isDragActive ? 'text-blue-600' : 'text-blue-500'} transition-colors duration-300`} />
             </div>
             <p className="text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
               {isDragActive
@@ -370,8 +363,8 @@ export default function Home() {
         </div>
 
         {/* Feature cards with hover effects - Made more compact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"> {/* Reduced gap from 6 to 4 */}
-          <div className="modern-card p-5 text-center flex flex-col items-center space-y-3"> {/* Reduced padding and spacing */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"> {/* Further reduced gap and margin */}
+          <div className="modern-card p-4 text-center flex flex-col items-center space-y-2"> {/* Further reduced padding and spacing */}
             <div className="animated-icon-container mb-1">
               <FileUp className="h-6 w-6 text-blue-600" />
             </div>
@@ -381,7 +374,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="modern-card p-5 text-center flex flex-col items-center space-y-3">
+          <div className="modern-card p-4 text-center flex flex-col items-center space-y-2">
             <div className="animated-icon-container mb-1" style={{background: 'linear-gradient(135deg, rgba(237, 233, 254, 0.8), rgba(237, 233, 254, 0.4))'}}>
               <Brain className="h-6 w-6 text-purple-600" />
             </div>
@@ -391,7 +384,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="modern-card p-5 text-center flex flex-col items-center space-y-3">
+          <div className="modern-card p-4 text-center flex flex-col items-center space-y-2">
             <div className="animated-icon-container mb-1" style={{background: 'linear-gradient(135deg, rgba(220, 252, 231, 0.8), rgba(220, 252, 231, 0.4))'}}>
               <Table className="h-6 w-6 text-green-600" />
             </div>
@@ -401,7 +394,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="modern-card p-5 text-center flex flex-col items-center space-y-3">
+          <div className="modern-card p-4 text-center flex flex-col items-center space-y-2">
             <div className="animated-icon-container mb-1" style={{background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.8), rgba(254, 243, 199, 0.4))'}}>
               <ArrowRight className="h-6 w-6 text-amber-600" />
             </div>
