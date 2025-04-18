@@ -258,8 +258,8 @@ export default function Home() {
             {/* Status indicators */}
             {isUploading && (
               <div className="mt-5 w-full max-w-md">
-                {/* For small files: Simple spinner */}
-                {!isLargeFile && (
+                {/* For small files: Simple spinner - only show when not yet completed */}
+                {!isLargeFile && !uploadedSessionId && (
                   <div className="flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-lg shadow-sm">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
                     <span>Uploading your file...</span>
