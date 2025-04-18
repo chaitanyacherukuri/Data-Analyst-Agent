@@ -645,25 +645,88 @@ async def analyze_data(request: AnalysisRequest):
         # Run analysis using the agent
         try:
             # Try async version first (newer versions of agno)
-            response = await agent.arun(request.question)
-            # Return in the format expected by frontend
-            if isinstance(response, str):
-                return create_json_response({"content": response})
-            elif hasattr(response, 'content'):
-                return create_json_response({"content": response.content})
-            else:
-                return create_json_response({"content": str(response)})
-        except (AttributeError, TypeError) as e:
-            # Fall back to sync version if async not available
-            print(f"Using synchronous run as async failed: {e}")
-            response = agent.run(request.question)
-            # Handle different response formats
-            if hasattr(response, 'content'):
-                return create_json_response({"content": response.content})
-            elif isinstance(response, str):
-                return create_json_response({"content": response})
-            else:
-                return create_json_response({"content": str(response)})
+            try:
+                response = await agent.arun(request.question)
+                # Return in the format expected by frontend
+                if isinstance(response, str):
+                    return create_json_response({"content": response})
+                elif hasattr(response, 'content'):
+                    return create_json_response({"content": response.content})
+                else:
+                    return create_json_response({"content": str(response)})
+            except Exception as async_error:
+                # Check for specific Groq errors in the async error
+                error_str = str(async_error).lower()
+
+                # Handle rate limit errors
+                if "rate limit" in error_str or "ratelimit" in error_str:
+                    print(f"Groq rate limit error: {async_error}")
+                    return create_json_response(
+                        {"error": "Rate limit exceeded. Please wait a moment before trying again."},
+                        status_code=429
+                    )
+
+                # Handle token limit errors
+                if "token limit" in error_str or "context length" in error_str or "maximum context" in error_str:
+                    print(f"Groq token limit error: {async_error}")
+                    return create_json_response(
+                        {"error": "The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset."},
+                        status_code=500
+                    )
+
+                # Handle tool call errors
+                if "tool call" in error_str or "function call" in error_str:
+                    print(f"Groq tool call error: {async_error}")
+                    return create_json_response(
+                        {"error": "The AI model encountered an error processing your request. Please try a different question."},
+                        status_code=500
+                    )
+
+                # Fall back to sync version if async not available or failed for other reasons
+                print(f"Using synchronous run as async failed: {async_error}")
+                response = agent.run(request.question)
+                # Handle different response formats
+                if hasattr(response, 'content'):
+                    return create_json_response({"content": response.content})
+                elif isinstance(response, str):
+                    return create_json_response({"content": response})
+                else:
+                    return create_json_response({"content": str(response)})
+        except Exception as e:
+            # Check for specific Groq errors in the sync error
+            error_str = str(e).lower()
+
+            # Handle rate limit errors
+            if "rate limit" in error_str or "ratelimit" in error_str:
+                print(f"Groq rate limit error: {e}")
+                return create_json_response(
+                    {"error": "Rate limit exceeded. Please wait a moment before trying again."},
+                    status_code=429
+                )
+
+            # Handle token limit errors
+            if "token limit" in error_str or "context length" in error_str or "maximum context" in error_str:
+                print(f"Groq token limit error: {e}")
+                return create_json_response(
+                    {"error": "The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset."},
+                    status_code=500
+                )
+
+            # Handle tool call errors
+            if "tool call" in error_str or "function call" in error_str:
+                print(f"Groq tool call error: {e}")
+                return create_json_response(
+                    {"error": "The AI model encountered an error processing your request. Please try a different question."},
+                    status_code=500
+                )
+
+            # Generic error handling
+            print(f"Error in analysis: {str(e)}")
+            traceback.print_exc()
+            return create_json_response(
+                {"error": f"Analysis failed: {str(e)}"},
+                status_code=500
+            )
     except Exception as e:
         print(f"Error in analysis: {str(e)}")
         traceback.print_exc()

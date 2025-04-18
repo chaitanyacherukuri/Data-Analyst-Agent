@@ -41,7 +41,9 @@ export default function AnalysisPage() {
   const [userQuestion, setUserQuestion] = useState("");
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [analysisError, setAnalysisError] = useState("");
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Validate and store session ID
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function AnalysisPage() {
 
     setIsAnalyzing(true);
     setAnalysisResults(null);
-    setError("");
+    setAnalysisError("");
 
     try {
       console.log(`Analyzing session ${sessionId} with question: ${question}`);
@@ -155,11 +157,39 @@ export default function AnalysisPage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Analysis failed: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`Analysis failed: ${response.status} ${response.statusText}`);
+
+        // Handle specific error cases
+        if (response.status === 429) {
+          throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+        } else if (response.status === 502 || response.status === 504) {
+          throw new Error("The server took too long to respond. This might happen with large files or complex questions.");
+        } else if (response.status === 500) {
+          // Try to parse the error message from the response
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.error && errorData.error.includes("token limit")) {
+              throw new Error("The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset.");
+            } else if (errorData.error && errorData.error.includes("rate limit")) {
+              throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+            } else {
+              throw new Error(`Analysis failed: ${errorData.error || 'Server error'}`);
+            }
+          } catch (parseError) {
+            // If we can't parse the error, use a generic message
+            throw new Error(`Analysis failed: Server error (${response.status}). Please try again later.`);
+          }
+        } else {
+          throw new Error(`Analysis failed: ${response.status} ${response.statusText}`);
+        }
       }
 
       const data = await response.json();
       console.log("Analysis response:", data);
+
+      // Check for error in the response data
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       // Handle different response formats
       if (data.content) {
@@ -172,17 +202,37 @@ export default function AnalysisPage() {
         console.warn("Unexpected response format:", data);
         setAnalysisResults(JSON.stringify(data, null, 2));
       }
-    } catch (error) {
+
+      // Reset retry count on success
+      setRetryCount(0);
+    } catch (error: any) {
       console.error("Analysis error:", error);
-      setError("Failed to analyze data. Please try a different question.");
+
+      // Set a more specific error message
+      let errorMessage = "Failed to analyze data. Please try a different question.";
+
+      if (error.message) {
+        if (error.message.includes("token limit")) {
+          errorMessage = "The AI model reached its token limit. Please try a simpler question or analyze a smaller dataset.";
+        } else if (error.message.includes("rate limit")) {
+          errorMessage = "Rate limit exceeded. Please wait a moment before trying again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      setAnalysisError(errorMessage);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [sessionId, scrollToResults]);
+  }, [sessionId, scrollToResults, retryCount]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Clear any previous errors
+    setAnalysisError("");
 
     // Scroll to results section immediately
     scrollToResults();
@@ -194,6 +244,9 @@ export default function AnalysisPage() {
   // Handle predefined question click
   const handlePredefinedQuestion = (questionText: string) => {
     setUserQuestion(questionText);
+
+    // Clear any previous errors
+    setAnalysisError("");
 
     // Scroll to results section immediately
     scrollToResults();
@@ -497,7 +550,7 @@ export default function AnalysisPage() {
 
           {/* Analysis results - Always render the container but conditionally show content */}
           <div ref={analysisResultsRef} className="modern-card">
-            {(isAnalyzing || analysisResults) && (
+            {(isAnalyzing || analysisResults || analysisError) && (
               <>
                 <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 flex items-center justify-between">
                   <div className="flex items-center">
@@ -537,7 +590,41 @@ export default function AnalysisPage() {
                     </div>
                   )}
 
-                  {analysisResults && !isAnalyzing && (
+                  {analysisError && !isAnalyzing && (
+                    <div className="py-6 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">Analysis Error</h3>
+                      <p className="text-red-600 mb-6 p-3 bg-red-50 rounded-lg max-w-2xl mx-auto">{analysisError}</p>
+                      <div className="flex justify-center space-x-4">
+                        <button
+                          onClick={() => {
+                            // Try the same question again
+                            setRetryCount(prev => prev + 1);
+                            analyzeData(userQuestion);
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Try Again
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Clear the error and let user try a different question
+                            setAnalysisError("");
+                            setUserQuestion("");
+                          }}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          Try a Different Question
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisResults && !isAnalyzing && !analysisError && (
                     <div className="prose max-w-none">
                       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                         <ReactMarkdown
