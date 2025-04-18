@@ -178,6 +178,11 @@ export default function AnalysisPage() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Scroll to results section immediately
+    scrollToResults();
+
+    // Then start the analysis
     analyzeData(userQuestion);
   };
 
@@ -500,10 +505,6 @@ export default function AnalysisPage() {
 
                   {analysisResults && !isAnalyzing && (
                     <div className="prose max-w-none">
-                      <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 rounded-xl mb-6 border border-blue-100/50">
-                        <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">Analysis Summary</h3>
-                        <p className="text-gray-700 italic">The AI has analyzed your data and provided the following insights:</p>
-                      </div>
                       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
