@@ -216,194 +216,226 @@ export default function Home() {
   });
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-12 bg-gradient-to-b from-slate-50 to-blue-50">
-      <div className="max-w-4xl w-full space-y-10">
-        {/* Header with gradient text */}
-        <div className="text-center space-y-6">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 leading-tight pb-1 drop-shadow-sm">
-            Data Analysis Agent
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Upload your CSV file and get AI-powered insights from your data in seconds
-          </p>
-        </div>
+    <main className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-gradient-to-b from-slate-50 to-blue-50">
+      {/* Header with gradient text - made more compact */}
+      <div className="w-full max-w-6xl mb-6 md:mb-8 text-center">
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 leading-tight pb-1 drop-shadow-sm">
+          Data Analysis Agent
+        </h1>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto mt-2">
+          Upload your CSV file and get AI-powered insights from your data in seconds
+        </p>
+      </div>
 
-        {/* Feature cards with hover effects */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
-            <div className="animated-icon-container mb-2">
-              <FileUp className="h-6 w-6 text-blue-600" />
+      {/* Main content area with two columns on larger screens */}
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 items-start">
+        {/* Left column: Upload area - Prominent and visible without scrolling */}
+        <div className="w-full lg:w-3/5 order-2 lg:order-1">
+          <div className="sticky top-4">
+            <div className="bg-white bg-opacity-70 backdrop-blur-sm p-4 rounded-lg shadow-sm mb-4">
+              <h2 className="text-xl font-semibold text-blue-700 flex items-center">
+                <FileUp className="h-5 w-5 mr-2" />
+                Upload Your Data
+              </h2>
+              <p className="text-gray-600 text-sm">CSV files only. No file size limit.</p>
             </div>
-            <h2 className="text-xl font-semibold">Easy Upload</h2>
-            <p className="text-gray-600">
-              Simply drag and drop your CSV file to begin analyzing your data
-            </p>
-          </div>
 
-          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
-            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(237, 233, 254, 0.8), rgba(237, 233, 254, 0.4))'}}>
-              <Brain className="h-6 w-6 text-purple-600" />
-            </div>
-            <h2 className="text-xl font-semibold">AI Analysis</h2>
-            <p className="text-gray-600">
-              Our AI agent will analyze your data and provide valuable insights
-            </p>
-          </div>
+            {/* Modern file upload area - Made more prominent */}
+            <div
+              {...getRootProps()}
+              className={`p-8 border-3 border-dashed rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all duration-300 min-h-[250px] ${
+                isDragActive
+                  ? "border-blue-500 bg-blue-50 shadow-lg scale-[1.01]"
+                  : "border-blue-300 hover:border-blue-400 bg-white hover:bg-blue-50/50 hover:shadow-md"
+              }`}
+            >
+              <input {...getInputProps()} />
+              <div className={`mb-6 p-6 rounded-full ${isDragActive ? 'bg-blue-100' : 'bg-blue-50'} transition-all duration-300`}>
+                <FileUp className={`h-16 w-16 ${isDragActive ? 'text-blue-600' : 'text-blue-500'} transition-colors duration-300`} />
+              </div>
+              <p className="text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                {isDragActive
+                  ? "Drop your CSV file here"
+                  : "Drag and drop your CSV file here"}
+              </p>
+              <p className="text-base text-gray-600 mt-2">or <span className="text-blue-500 hover:text-blue-700 font-medium cursor-pointer">click to browse</span></p>
+              <p className="text-sm text-gray-500 mt-4 flex items-center">
+                <span className="inline-block w-1 h-1 rounded-full bg-gray-400 mr-2"></span>
+                Only CSV files are supported
+              </p>
 
-          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
-            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(220, 252, 231, 0.8), rgba(220, 252, 231, 0.4))'}}>
-              <Table className="h-6 w-6 text-green-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Comprehensive Reports</h2>
-            <p className="text-gray-600">
-              Get detailed reports on your data structure, quality, and patterns
-            </p>
-          </div>
+              {/* Status indicators */}
+              {isUploading && (
+                <div className="mt-6 w-full max-w-md">
+                  {/* For small files: Simple spinner */}
+                  {!isLargeFile && (
+                    <div className="flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-lg">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                      <span>Uploading your file...</span>
+                    </div>
+                  )}
 
-          <div className="modern-card p-6 text-center flex flex-col items-center space-y-4">
-            <div className="animated-icon-container mb-2" style={{background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.8), rgba(254, 243, 199, 0.4))'}}>
-              <ArrowRight className="h-6 w-6 text-amber-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Natural Language</h2>
-            <p className="text-gray-600">
-              Ask questions in plain English and get answers from your data
-            </p>
-          </div>
-        </div>
+                  {/* For large files: Detailed progress bar */}
+                  {isLargeFile && (
+                    <>
+                      {/* Progress bar container */}
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-sm font-medium text-blue-700">
+                          {uploadStage === 'preparing' && 'Preparing upload...'}
+                          {uploadStage === 'uploading' && `Uploading: ${uploadProgress}%`}
+                          {uploadStage === 'processing' && 'Processing file...'}
+                          {uploadStage === 'complete' && 'Upload complete!'}
+                        </div>
+                        <div className="text-xs text-blue-600">{uploadProgress}%</div>
+                      </div>
 
-        {/* Modern file upload area */}
-        <div
-          {...getRootProps()}
-          className={`mt-10 p-10 border-2 border-dashed rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all duration-300 ${
-            isDragActive
-              ? "border-blue-400 bg-blue-50 shadow-md scale-[1.02]"
-              : "border-gray-300 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md"
-          }`}
-        >
-          <input {...getInputProps()} />
-          <div className={`mb-6 p-4 rounded-full ${isDragActive ? 'bg-blue-100' : 'bg-blue-50'} transition-all duration-300`}>
-            <FileUp className={`h-12 w-12 ${isDragActive ? 'text-blue-600' : 'text-blue-400'} transition-colors duration-300`} />
-          </div>
-          <p className="text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            {isDragActive
-              ? "Drop your CSV file here"
-              : "Drag and drop your CSV file here"}
-          </p>
-          <p className="text-base text-gray-500 mt-2">or <span className="text-blue-500 hover:text-blue-700 cursor-pointer">click to browse</span></p>
-          <p className="text-sm text-gray-400 mt-4 flex items-center">
-            <span className="inline-block w-1 h-1 rounded-full bg-gray-400 mr-2"></span>
-            Only CSV files are supported
-          </p>
+                      {/* Progress bar */}
+                      <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
 
-          {/* Status indicators */}
-          {isUploading && (
-            <div className="mt-6 w-full max-w-md">
-              {/* For small files: Simple spinner */}
-              {!isLargeFile && (
-                <div className="flex items-center justify-center text-blue-600">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                  <span>Uploading your file...</span>
+                      {/* Stage indicator */}
+                      <div className="mt-2 flex justify-between text-xs text-gray-500">
+                        <div className={`${uploadStage !== 'preparing' ? 'text-blue-600 font-medium' : ''}`}>Preparing</div>
+                        <div className={`${uploadStage === 'uploading' || uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Uploading</div>
+                        <div className={`${uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Processing</div>
+                        <div className={`${uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Complete</div>
+                      </div>
+
+                      {/* Additional info based on stage */}
+                      <div className="mt-3 text-center text-sm">
+                        {uploadStage === 'preparing' && (
+                          <div className="flex items-center justify-center text-blue-600">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                            Preparing your file for upload...
+                          </div>
+                        )}
+
+                        {uploadStage === 'uploading' && uploadProgress < 100 && (
+                          <div className="text-blue-600">
+                            Uploading your file to the server...
+                          </div>
+                        )}
+
+                        {uploadStage === 'uploading' && uploadProgress === 100 && (
+                          <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Upload complete! Processing your data...
+                          </div>
+                        )}
+
+                        {uploadStage === 'processing' && (
+                          <div className="flex items-center justify-center text-blue-600">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                            Processing your data...
+                          </div>
+                        )}
+
+                        {uploadStage === 'complete' && (
+                          <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Upload successful! Redirecting to analysis...
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* For large files: Detailed progress bar */}
-              {isLargeFile && (
-                <>
-                  {/* Progress bar container */}
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-medium text-blue-700">
-                      {uploadStage === 'preparing' && 'Preparing upload...'}
-                      {uploadStage === 'uploading' && `Uploading: ${uploadProgress}%`}
-                      {uploadStage === 'processing' && 'Processing file...'}
-                      {uploadStage === 'complete' && 'Upload complete!'}
-                    </div>
-                    <div className="text-xs text-blue-600">{uploadProgress}%</div>
+              {uploadError && (
+                <div className="mt-6 text-red-600 bg-red-50 px-4 py-3 rounded-lg shadow-sm">{uploadError}</div>
+              )}
+
+              {/* Only show this for small files or when not showing the detailed progress bar */}
+              {uploadedSessionId && !isLargeFile && (
+                <div className="mt-6 text-center">
+                  <div className="text-green-600 bg-green-50 px-4 py-3 rounded-lg shadow-sm flex items-center justify-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Upload successful! Redirecting to analysis...
                   </div>
-
-                  {/* Progress bar */}
-                  <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 transition-all duration-300 ease-out"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
+                  <div className="mt-3 flex justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
                   </div>
-
-                  {/* Stage indicator */}
-                  <div className="mt-2 flex justify-between text-xs text-gray-500">
-                    <div className={`${uploadStage !== 'preparing' ? 'text-blue-600 font-medium' : ''}`}>Preparing</div>
-                    <div className={`${uploadStage === 'uploading' || uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Uploading</div>
-                    <div className={`${uploadStage === 'processing' || uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Processing</div>
-                    <div className={`${uploadStage === 'complete' ? 'text-blue-600 font-medium' : ''}`}>Complete</div>
-                  </div>
-
-                  {/* Additional info based on stage */}
-                  <div className="mt-3 text-center text-sm">
-                    {uploadStage === 'preparing' && (
-                      <div className="flex items-center justify-center text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                        Preparing your file for upload...
-                      </div>
-                    )}
-
-                    {uploadStage === 'uploading' && uploadProgress < 100 && (
-                      <div className="text-blue-600">
-                        Uploading your file to the server...
-                      </div>
-                    )}
-
-                    {uploadStage === 'uploading' && uploadProgress === 100 && (
-                      <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Upload complete! Processing your data...
-                      </div>
-                    )}
-
-                    {uploadStage === 'processing' && (
-                      <div className="flex items-center justify-center text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                        Processing your data...
-                      </div>
-                    )}
-
-                    {uploadStage === 'complete' && (
-                      <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Upload successful! Redirecting to analysis...
-                      </div>
-                    )}
-                  </div>
-                </>
+                </div>
               )}
             </div>
-          )}
+          </div>
+        </div>
 
-          {uploadError && (
-            <div className="mt-6 text-red-600 bg-red-50 px-4 py-2 rounded-full">{uploadError}</div>
-          )}
+        {/* Right column: Feature cards - Now in a sidebar */}
+        <div className="w-full lg:w-2/5 order-1 lg:order-2">
+          <div className="bg-white bg-opacity-70 backdrop-blur-sm p-4 rounded-lg shadow-sm mb-4">
+            <h2 className="text-xl font-semibold text-purple-700 flex items-center">
+              <Brain className="h-5 w-5 mr-2" />
+              Features
+            </h2>
+            <p className="text-gray-600 text-sm">Powerful AI-driven data analysis</p>
+          </div>
 
-          {/* Only show this for small files or when not showing the detailed progress bar */}
-          {uploadedSessionId && !isLargeFile && (
-            <div className="mt-6 text-center">
-              <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Upload successful! Redirecting to analysis...
+          <div className="grid grid-cols-1 gap-3">
+            <div className="modern-card p-4 text-left flex items-start space-x-4">
+              <div className="animated-icon-container p-2 rounded-full bg-blue-50">
+                <FileUp className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="mt-3 flex justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+              <div>
+                <h3 className="text-lg font-semibold">Easy Upload</h3>
+                <p className="text-gray-600 text-sm">
+                  Simply drag and drop your CSV file to begin analyzing your data
+                </p>
               </div>
             </div>
-          )}
+
+            <div className="modern-card p-4 text-left flex items-start space-x-4">
+              <div className="animated-icon-container p-2 rounded-full" style={{background: 'linear-gradient(135deg, rgba(237, 233, 254, 0.8), rgba(237, 233, 254, 0.4))'}}>
+                <Brain className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">AI Analysis</h3>
+                <p className="text-gray-600 text-sm">
+                  Our AI agent will analyze your data and provide valuable insights
+                </p>
+              </div>
+            </div>
+
+            <div className="modern-card p-4 text-left flex items-start space-x-4">
+              <div className="animated-icon-container p-2 rounded-full" style={{background: 'linear-gradient(135deg, rgba(220, 252, 231, 0.8), rgba(220, 252, 231, 0.4))'}}>
+                <Table className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Comprehensive Reports</h3>
+                <p className="text-gray-600 text-sm">
+                  Get detailed reports on your data structure, quality, and patterns
+                </p>
+              </div>
+            </div>
+
+            <div className="modern-card p-4 text-left flex items-start space-x-4">
+              <div className="animated-icon-container p-2 rounded-full" style={{background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.8), rgba(254, 243, 199, 0.4))'}}>
+                <ArrowRight className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Natural Language</h3>
+                <p className="text-gray-600 text-sm">
+                  Ask questions in plain English and get answers from your data
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="w-full mt-16 text-center text-gray-400 text-sm">
+      <div className="w-full mt-8 text-center text-gray-400 text-sm">
         <p>© {new Date().getFullYear()} Data Analysis Agent • AI-Powered Data Insights</p>
       </div>
     </main>
