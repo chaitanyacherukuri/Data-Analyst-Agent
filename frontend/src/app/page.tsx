@@ -109,6 +109,13 @@ export default function Home() {
             console.log(`Upload progress: ${percentComplete}%`);
             setUploadProgress(percentComplete);
             setUploadStage('uploading');
+
+            // When upload reaches 100%, show the success message immediately
+            if (percentComplete === 100) {
+              console.log('Upload complete, waiting for server processing');
+              // We keep the stage as 'uploading' but with 100% progress
+              // The UI will show a success message based on this state
+            }
           } else {
             console.log('Upload progress event not computable');
             // Still show uploading state even if we can't compute percentage
@@ -139,8 +146,7 @@ export default function Home() {
                   return;
                 }
 
-                // Set progress to 100% when complete
-                setUploadProgress(100);
+                // Set stage to complete
                 setUploadStage('complete');
 
                 // Store session ID and trigger navigation
@@ -345,10 +351,28 @@ export default function Home() {
                       </div>
                     )}
 
+                    {uploadStage === 'uploading' && uploadProgress === 100 && (
+                      <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Upload complete! Processing your data...
+                      </div>
+                    )}
+
                     {uploadStage === 'processing' && (
                       <div className="flex items-center justify-center text-blue-600">
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
                         Processing your data...
+                      </div>
+                    )}
+
+                    {uploadStage === 'complete' && (
+                      <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Upload successful! Redirecting to analysis...
                       </div>
                     )}
                   </div>
@@ -361,7 +385,8 @@ export default function Home() {
             <div className="mt-6 text-red-600 bg-red-50 px-4 py-2 rounded-full">{uploadError}</div>
           )}
 
-          {uploadedSessionId && (
+          {/* Only show this for small files or when not showing the detailed progress bar */}
+          {uploadedSessionId && !isLargeFile && (
             <div className="mt-6 text-center">
               <div className="text-green-600 bg-green-50 px-4 py-2 rounded-full flex items-center justify-center">
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
