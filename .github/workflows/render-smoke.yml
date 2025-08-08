@@ -1,0 +1,32 @@
+name: Render Deploy Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_url:
+        description: "Backend base URL (e.g. https://your-service.onrender.com)"
+        required: true
+  repository_dispatch:
+    types: [render-deploy-success]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      BACKEND_BASE_URL: ${{ github.event.inputs.backend_url || github.event.client_payload.backend_url }}
+      SMOKE_TIMEOUT: "10"
+      SMOKE_RETRIES: "30"
+      SMOKE_DELAY: "10"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run smoke test
+        run: |
+          python scripts/smoke_test.py --base-url "$BACKEND_BASE_URL"
+

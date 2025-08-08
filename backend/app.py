@@ -43,6 +43,10 @@ if not GROQ_API_KEY:
 PORT = os.getenv("PORT", "8000")
 print(f"PORT environment variable is set to: {PORT}")
 
+# Writable temp directory (can be overridden for platforms like Cloud Run/Render)
+TEMP_DIR = os.getenv("TEMP_DIR", "temp")
+print(f"Using TEMP_DIR: {TEMP_DIR}")
+
 # File management configuration
 FILE_MAX_AGE_HOURS = int(os.getenv("FILE_MAX_AGE_HOURS", "24"))  # Files older than this will be deleted
 SESSION_EXPIRY_HOURS = int(os.getenv("SESSION_EXPIRY_HOURS", "24"))  # Sessions older than this will expire
@@ -116,13 +120,13 @@ app.add_middleware(
 )
 
 # Create temp directory
-os.makedirs("temp", exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 # Session store (in production, use Redis or a database)
 sessions = {}
 
 # Session persistence file
-SESSION_FILE = "temp/sessions.json"
+SESSION_FILE = os.path.join(TEMP_DIR, "sessions.json")
 
 # Load sessions from file if it exists
 def load_sessions():
@@ -183,7 +187,7 @@ def get_session_age_hours(session):
 def get_temp_dir_size_mb():
     """Get the size of the temp directory in MB"""
     total_size = 0
-    for dirpath, dirnames, filenames in os.walk("temp"):
+    for dirpath, dirnames, filenames in os.walk(TEMP_DIR):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             if os.path.exists(fp):
@@ -200,9 +204,9 @@ async def cleanup_files():
         sessions_expired = 0
 
         # Check if temp directory exists
-        if not os.path.exists("temp"):
+        if not os.path.exists(TEMP_DIR):
             print("Temp directory does not exist, creating it")
-            os.makedirs("temp", exist_ok=True)
+            os.makedirs(TEMP_DIR, exist_ok=True)
             return
 
         # Get current temp directory size
@@ -211,8 +215,8 @@ async def cleanup_files():
 
         # First, clean up orphaned files (files without a session)
         session_files = {session.file_path for session in sessions.values()}
-        for file_name in os.listdir("temp"):
-            file_path = os.path.join("temp", file_name)
+        for file_name in os.listdir(TEMP_DIR):
+            file_path = os.path.join(TEMP_DIR, file_name)
             if os.path.isfile(file_path) and file_path not in session_files:
                 file_age_hours = get_file_age_hours(file_path)
                 if file_age_hours > FILE_MAX_AGE_HOURS:
@@ -256,8 +260,8 @@ async def cleanup_files():
             print(f"Temp directory size exceeds limit, removing oldest files")
             # Get all files with their ages
             temp_files = []
-            for file_name in os.listdir("temp"):
-                file_path = os.path.join("temp", file_name)
+            for file_name in os.listdir(TEMP_DIR):
+                file_path = os.path.join(TEMP_DIR, file_name)
                 if os.path.isfile(file_path):
                     temp_files.append((file_path, get_file_age_hours(file_path)))
 
@@ -372,7 +376,7 @@ async def debug():
         "current_directory": os.getcwd(),
         "files_in_directory": os.listdir(),
         "environment": {k: v[:5] + '...' if k == 'GROQ_API_KEY' and v else v for k, v in os.environ.items() if not k.startswith('_')},
-        "temp_directory": os.path.exists("temp"),
+        "temp_directory": os.path.exists(TEMP_DIR),
         "memory_usage": sessions,
     }
 
@@ -393,12 +397,12 @@ async def upload_file(file: UploadFile = File(...)):
 
     # Generate session ID and save file
     session_id = str(uuid.uuid4())
-    file_path = f"temp/{session_id}_{file.filename}"
+    file_path = os.path.join(TEMP_DIR, f"{session_id}_{file.filename}")
 
     try:
         # Ensure temp directory exists
-        os.makedirs("temp", exist_ok=True)
-        print(f"Temp directory exists: {os.path.exists('temp')}")
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        print(f"Temp directory exists: {os.path.exists(TEMP_DIR)}")
 
         # Save file content
         print(f"Saving file to {file_path}")
@@ -1021,8 +1025,8 @@ async def system_info():
                 "ids": list(sessions.keys())
             },
             "temp_directory": {
-                "exists": os.path.exists("temp"),
-                "file_count": len(os.listdir("temp")) if os.path.exists("temp") else 0,
+                "exists": os.path.exists(TEMP_DIR),
+                "file_count": len(os.listdir(TEMP_DIR)) if os.path.exists(TEMP_DIR) else 0,
                 "size_mb": round(get_temp_dir_size_mb(), 2),
                 "max_size_mb": MAX_TEMP_DIR_SIZE_MB
             },
