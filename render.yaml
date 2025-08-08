@@ -4,27 +4,22 @@ services:
     env: python
     plan: free
     region: oregon
+    pythonVersion: 3.11
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/start_server.py
+    healthCheckPath: /ping
+    autoDeploy: true
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
-      - key: PORT
-        value: 10000
       - key: TEMP_DIR
         value: /opt/render/project/src/tmp
       - key: FILE_MAX_AGE_HOURS
-        value: 24
+        value: "24"
       - key: SESSION_EXPIRY_HOURS
-        value: 24
+        value: "24"
       - key: CLEANUP_INTERVAL_MINUTES
-        value: 60
+        value: "60"
       - key: MAX_TEMP_DIR_SIZE_MB
-        value: 500
+        value: "500"
       - key: GROQ_API_KEY
-        sync: false
-    healthCheckPath: /ping
-    autoDeploy: true
-
-templates: {}
+        value: ""
 
