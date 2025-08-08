@@ -528,7 +528,7 @@ def get_agent(file_path: str):
                     model = Groq(
                         id="openai/gpt-oss-120b",
                         temperature=0.05,
-                        max_tokens=8000,
+                        max_tokens=4000,
                         api_key=GROQ_API_KEY
                     )
                     print("Configured Groq model: openai/gpt-oss-120b | temperature=0.05 | max_tokens=8000")
