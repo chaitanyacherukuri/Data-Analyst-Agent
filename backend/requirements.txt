@@ -8,4 +8,5 @@ agno
 duckdb
 groq
 types-requests
-httpx 
+httpx
+packaging>=23.1

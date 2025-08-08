@@ -23,6 +23,7 @@ def install_packages():
         "python-multipart",
         "pandas",
         "python-dotenv",
+        "packaging",
         "duckdb"
     ]
 
