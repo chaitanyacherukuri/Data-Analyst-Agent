@@ -4,11 +4,14 @@ services:
     env: python
     plan: free
     region: oregon
-    pythonVersion: 3.11
+
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/start_server.py
     healthCheckPath: /ping
     autoDeploy: true
+    runtime:
+      pythonVersion: 3.11
+
     envVars:
       - key: TEMP_DIR
         value: /opt/render/project/src/tmp
