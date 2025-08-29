@@ -526,12 +526,12 @@ def get_agent(file_path: str):
                 if hasattr(agno_groq, "Groq"):
                     Groq = agno_groq.Groq
                     model = Groq(
-                        id="meta-llama/llama-4-maverick-17b-128e-instruct",
+                        id="meta-llama/llama-4-scout-17b-16e-instruct",
                         temperature=0.1,
                         max_tokens=4000,
                         api_key=GROQ_API_KEY
                     )
-                    print("Configured Groq model: meta-llama/llama-4-maverick-17b-128e-instruct | temperature=0.1 | max_tokens=4000")
+                    print("Configured Groq model: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=4000")
                     groq_available = True
                     print("Successfully initialized Groq model")
                 else:
@@ -551,12 +551,12 @@ def get_agent(file_path: str):
                     if hasattr(agno_groq, "Groq"):
                         Groq = agno_groq.Groq
                         model = Groq(
-                            id="meta-llama/llama-4-maverick-17b-128e-instruct",
+                            id="meta-llama/llama-4-scout-17b-16e-instruct",
                             temperature=0.1,
                             max_tokens=4000,
                             api_key=GROQ_API_KEY
                         )
-                        print("Configured Groq model after installation: meta-llama/llama-4-maverick-17b-128e-instruct | temperature=0.1 | max_tokens=4000")
+                        print("Configured Groq model after installation: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=4000")
                         groq_available = True
                         print("Successfully initialized Groq model after installation")
                 except Exception as e2:
