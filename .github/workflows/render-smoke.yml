@@ -1,6 +1,8 @@
 name: Render Deploy Smoke Test
 
 on:
+  schedule:
+    - cron: '*/15 * * * *'  # Run every 15 minutes to keep service warm
   workflow_dispatch:
     inputs:
       backend_url:
@@ -13,7 +15,7 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     env:
-      BACKEND_BASE_URL: ${{ github.event.inputs.backend_url || github.event.client_payload.backend_url }}
+      BACKEND_BASE_URL: ${{ github.event.inputs.backend_url || github.event.client_payload.backend_url || secrets.RENDER_BACKEND_URL }}
       SMOKE_TIMEOUT: "10"
       SMOKE_RETRIES: "30"
       SMOKE_DELAY: "10"
@@ -25,6 +27,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Check Backend URL
+        run: |
+          if [ -z "$BACKEND_BASE_URL" ]; then
+            echo "❌ No backend URL provided!"
+            echo "For scheduled runs, please set RENDER_BACKEND_URL as a repository secret."
+            echo "Go to: Settings → Secrets and variables → Actions → Repository secrets"
+            echo "Add: RENDER_BACKEND_URL = https://your-service.onrender.com"
+            exit 1
+          fi
+          echo "✅ Backend URL: $BACKEND_BASE_URL"
 
       - name: Run smoke test
         run: |
