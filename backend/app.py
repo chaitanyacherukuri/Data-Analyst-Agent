@@ -528,10 +528,10 @@ def get_agent(file_path: str):
                     model = Groq(
                         id="meta-llama/llama-4-scout-17b-16e-instruct",
                         temperature=0.1,
-                        max_tokens=4000,
+                        max_tokens=3000,
                         api_key=GROQ_API_KEY
                     )
-                    print("Configured Groq model: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=4000")
+                    print("Configured Groq model: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=3000")
                     groq_available = True
                     print("Successfully initialized Groq model")
                 else:
@@ -553,10 +553,10 @@ def get_agent(file_path: str):
                         model = Groq(
                             id="meta-llama/llama-4-scout-17b-16e-instruct",
                             temperature=0.1,
-                            max_tokens=4000,
+                            max_tokens=3000,
                             api_key=GROQ_API_KEY
                         )
-                        print("Configured Groq model after installation: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=4000")
+                        print("Configured Groq model after installation: meta-llama/llama-4-scout-17b-16e-instruct | temperature=0.1 | max_tokens=3000")
                         groq_available = True
                         print("Successfully initialized Groq model after installation")
                 except Exception as e2:
@@ -570,7 +570,7 @@ def get_agent(file_path: str):
             model = FallbackModel(
                 id="fallback-model",
                 temperature=0.1,
-                max_tokens=4000,
+                max_tokens=3000,
                 api_key=GROQ_API_KEY
             )
 
